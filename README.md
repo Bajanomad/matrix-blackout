@@ -71,6 +71,7 @@ from `411matrix`.
 
 ## Known limits
 
-- Not hosted yet: no Vercel project is connected to this repo.
+- Hosted on the Vercel project `matrix-blackout`
+  (team `bajaheat24x7-8566s-projects`), connected to this repo.
 - WhatsApp and Signal open through their app links; if the app is not
   installed, Safari shows an "address is invalid" message.
