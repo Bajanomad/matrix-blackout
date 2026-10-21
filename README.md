@@ -19,12 +19,24 @@ GitHub Pages). Paths are absolute from the site root (`/app.js`, `/sw.js`).
 
 ## Screen
 
-- **Status line**: name and an Online/Offline indicator.
-- **Clock widget**: time and date, from the phone.
-- **Weather widget**: current conditions from Open-Meteo (free, no key).
-  Defaults to Todos Santos (23.4464, -110.2265, from the 411 places data).
-  Tap it to use the phone's location; the choice is remembered on that phone.
-- **Shortcuts** (10):
+Styled like the Matrix 411 site: green on black, terminal panels with
+`name://` title bars, VT323 / Share Tech Mono, katakana code rain behind
+everything, and a typed `> wake up, neo...` boot line.
+
+Widgets:
+
+- **clock://local**: time with seconds, and the date, from the phone.
+- **weather://todos-santos**: current conditions, high/low, sunrise/sunset
+  and a 4-day forecast from Open-Meteo (free, no key). Defaults to Todos
+  Santos (23.4464, -110.2265, from the 411 places data). The ⌖ button
+  switches to the phone's location; the choice is remembered on that phone.
+- **cal://month**: this month with today lit; tap to open Calendar.
+- **sys://status**: progress bars for the day, week and year, and the moon
+  phase with how much of it is lit.
+- **Online/Offline** indicator next to the name.
+
+- **apps://launch**: 10 shortcuts, each with a drawn green line icon
+  (Matrix-style, not the companies' logos):
 
 | Shortcut | Opens |
 | --- | --- |
