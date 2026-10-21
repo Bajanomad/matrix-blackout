@@ -18,12 +18,12 @@
   --safe-r: env(safe-area-inset-right, 0px);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { -webkit-text-size-adjust: 100%; background: #000; }
+html { -webkit-text-size-adjust: 100%; background: #000; height: 100%; overflow: hidden; touch-action: manipulation; }
 body {
-  margin: 0; min-height: 100vh; min-height: 100dvh;
+  margin: 0; height: 100vh; height: 100dvh; overflow: hidden; touch-action: manipulation;
   background: transparent; color: var(--green); /* html stays black; a body fill would cover the rain */
   font-family: var(--mono); line-height: 1.4;
-  overflow-x: hidden; -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: antialiased;
   -webkit-user-select: none; user-select: none;
 }
 a { color: inherit; }
@@ -39,8 +39,21 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--bright); outlin
 .home {
   max-width: 520px; margin: 0 auto;
   padding: calc(10px + var(--safe-t)) calc(14px + var(--safe-r)) calc(24px + var(--safe-b)) calc(14px + var(--safe-l));
-  display: flex; flex-direction: column; gap: 14px;
+  height: 100vh; height: 100dvh; overflow: hidden;
+  display: flex; flex-direction: column; gap: 10px;
 }
+
+/* Accordion: the clock stays; the rest fold, one open at a time, filling what is left */
+.acc { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.acc .panel { flex: 0 0 auto; min-height: 0; padding: 0; display: flex; flex-direction: column; }
+.acc .panel.open { flex: 1 1 auto; }
+.acc .term-bar { margin: 0; padding: 0 12px; min-height: 44px; cursor: pointer; border-bottom: 0; }
+.acc .panel.open .term-bar { border-bottom: 1px solid var(--line); }
+.acc .chev { transition: transform 0.15s ease; font-size: 1rem; }
+.acc .panel.open .chev { transform: rotate(180deg); }
+.acc-body { display: none; padding: 12px; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.acc .panel.open .acc-body { display: block; flex: 1; }
+.clock { flex: 0 0 auto; }
 
 /* Brand bar */
 .brand { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
@@ -75,7 +88,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--bright); outlin
 
 /* Clock */
 .clock-time { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
-.clock-time .hm { font-family: var(--display); font-size: 5.6rem; line-height: 0.85; color: var(--bright); text-shadow: 0 0 12px rgba(0, 255, 65, 0.7), 0 0 28px rgba(0, 255, 65, 0.3); }
+.clock-time .hm { font-family: var(--display); font-size: 4.4rem; line-height: 0.85; color: var(--bright); text-shadow: 0 0 12px rgba(0, 255, 65, 0.7), 0 0 28px rgba(0, 255, 65, 0.3); }
 .clock-time .ap { font-family: var(--display); font-size: 1.8rem; color: var(--green); }
 .clock-time .sec { font-family: var(--display); font-size: 1.8rem; color: var(--dim); }
 .clock-date { margin-top: 6px; font-size: 0.86rem; letter-spacing: 0.14em; color: var(--green-2); text-transform: uppercase; }
@@ -96,21 +109,21 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--bright); outlin
 }
 
 /* App launcher */
-.apps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 8px; }
+.apps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px 4px; }
 .app {
   display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;
   min-height: 44px; text-decoration: none; color: var(--green-2);
   background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
 }
 .app .ico {
-  width: 60px; height: 60px; border-radius: 14px; display: grid; place-items: center;
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
   background: rgba(0, 18, 5, 0.85); border: 1px solid var(--line);
   box-shadow: inset 0 0 16px rgba(0, 255, 65, 0.1), 0 0 10px rgba(0, 255, 65, 0.12);
   transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
-.app .ico svg { width: 30px; height: 30px; fill: none; stroke: var(--green); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(0, 255, 65, 0.8)); }
+.app .ico svg { width: 26px; height: 26px; fill: none; stroke: var(--green); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(0, 255, 65, 0.8)); }
 .app:active .ico { transform: scale(0.92); background: rgba(0, 255, 65, 0.2); box-shadow: var(--glow); }
-.app .lbl { font-size: 0.68rem; letter-spacing: 0.03em; text-align: center; line-height: 1.15; max-width: 78px; }
+.app .lbl { font-size: 0.6rem; letter-spacing: 0.03em; text-align: center; line-height: 1.15; max-width: 62px; }
 
 /* Calendar */
 .cal { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.72rem; text-align: center; }
@@ -157,7 +170,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--bright); outlin
 
 @media (max-width: 359px) {
   .clock-time .hm { font-size: 4.6rem; }
-  .app .ico { width: 52px; height: 52px; }
+  .app .ico { width: 42px; height: 42px; }
   .pair { gap: 10px; }
   .panel { padding: 12px; }
   .term-bar { margin: -12px -12px 10px; }

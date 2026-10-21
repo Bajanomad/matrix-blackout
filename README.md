@@ -23,6 +23,12 @@ Styled like the Matrix 411 site: green on black, terminal panels with
 `name://` title bars, VT323 / Share Tech Mono, katakana code rain behind
 everything, and a typed `> wake up, neo...` boot line.
 
+The screen is locked to one phone screen: no scrolling, no pinch or double-tap
+zoom. The clock stays on top; weather, apps, calendar and status are folded
+bars, and tapping one opens it (the others fold shut so everything fits).
+The iPhone status bar (time, battery) is drawn by iOS and cannot be hidden
+by a web app; the page runs under it (`black-translucent`).
+
 Widgets:
 
 - **clock://local**: time with seconds, and the date, from the phone.

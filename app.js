@@ -393,6 +393,51 @@
     return { node: sheet, open: open };
   }
 
+  /* ---------- Accordion: everything but the clock folds; one open at a time ---------- */
+  function accordion(home) {
+    var group = el("div", { class: "acc" });
+    var panels = Array.prototype.slice.call(home.querySelectorAll(".panel:not(.clock)"));
+    panels.forEach(function (p) {
+      var bar = p.querySelector(".term-bar");
+      var body = el("div", { class: "acc-body" });
+      while (bar.nextSibling) body.appendChild(bar.nextSibling);
+      p.appendChild(body);
+      bar.setAttribute("role", "button");
+      bar.setAttribute("tabindex", "0");
+      bar.appendChild(el("span", { class: "chev", "aria-hidden": "true", text: "▾" }));
+      function toggle() {
+        var open = !p.classList.contains("open");
+        panels.forEach(function (q) {
+          q.classList.remove("open");
+          q.querySelector(".term-bar").setAttribute("aria-expanded", "false");
+        });
+        if (open) { p.classList.add("open"); bar.setAttribute("aria-expanded", "true"); }
+      }
+      bar.setAttribute("aria-expanded", "false");
+      bar.addEventListener("click", toggle);
+      bar.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+      });
+      group.appendChild(p);
+      if (p.classList.contains("launcher")) { p.classList.add("open"); bar.setAttribute("aria-expanded", "true"); }
+    });
+    home.appendChild(group);
+  }
+
+  /* ---------- Lock zoom: no pinch, no double-tap zoom ---------- */
+  ["gesturestart", "gesturechange", "gestureend"].forEach(function (t) {
+    document.addEventListener(t, function (e) { e.preventDefault(); });
+  });
+  var lastTouch = 0;
+  document.addEventListener("touchend", function (e) {
+    var now = Date.now();
+    if (now - lastTouch < 350) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
+  document.addEventListener("touchmove", function (e) {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+
   /* ---------- Mount ---------- */
   startRain();
   var menu = repoMenu();
@@ -406,7 +451,7 @@
   window.addEventListener("offline", setNet);
 
   var boot = el("p", { class: "boot" });
-  document.body.appendChild(el("main", { class: "home" }, [
+  var home = el("main", { class: "home" }, [
     el("div", { class: "brand" }, [
       el("div", null, [el("b", { text: "BLACKOUT" }), el("small", { text: "Matrix // phone" })]),
       net,
@@ -417,9 +462,11 @@
     panel("apps://launch", [
       el("ul", { class: "apps", "aria-label": "Shortcuts" }, APPS.map(function (a) { return appTile(a, menu.open); })),
     ], "launcher"),
-    el("div", { class: "pair" }, [calendarWidget(), systemWidget()]),
-    el("div", { class: "foot", text: "THERE IS NO SPOON" }),
-  ]));
+    calendarWidget(),
+    systemWidget(),
+  ]);
+  document.body.appendChild(home);
+  accordion(home);
   document.body.appendChild(menu.node);
   typeInto(boot, "> wake up, neo...");
 
