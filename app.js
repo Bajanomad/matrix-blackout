@@ -419,7 +419,7 @@
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
       });
       group.appendChild(p);
-      if (p.classList.contains("launcher")) { p.classList.add("open"); bar.setAttribute("aria-expanded", "true"); }
+      if (p.classList.contains("weather")) { p.classList.add("open"); bar.setAttribute("aria-expanded", "true"); }
     });
     home.appendChild(group);
   }
