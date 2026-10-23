@@ -65,19 +65,51 @@ Widgets:
 Code rain pauses when the app is in the background and is off when the phone
 has Reduce Motion turned on.
 
+## Make your own (Blackout Studio)
+
+`/build` is a builder anyone can use to make their own version:
+
+1. **Pick a look**: Matrix, Wild West, Deep Space, Synthwave, Baja Beach or
+   Minimal. Each changes the colors, type, animated background, icon shape
+   and how the panel titles talk (`clock://local`, `★ Town Clock`,
+   `CHRONO · LOCAL`, `CLOCK.EXE`...).
+2. **Name it**: name, tagline and the greeting typed out on open.
+3. **Buttons**: up to 20, from a list of popular apps or any link, each with
+   its own icon; folders hold their own list of links (like Repos).
+4. **Widgets**: turn weather, apps, calendar and the day/week/year/moon
+   status on or off, order them, pick which starts open, and search a
+   weather town (Open-Meteo geocoding, °F or °C).
+5. **Get it**: a link that carries the whole screen, with the iPhone steps
+   (open in Safari → Share → Add to Home Screen).
+
+A live phone preview runs beside the steps on wide screens (a Preview button
+on phones). Nothing is stored on a server: the screen is packed into the
+link (`/#c=` + base64url JSON, see `themes.js`), and a draft stays on the
+device. Links are untrusted input, so `sanitize()` caps every field, keeps
+only known themes, icons and widgets, and drops `javascript:`/`data:` links.
+
+On a link, the page removes the manifest so iOS saves that exact address
+when it is added to the Home Screen, and sets the title and a home-screen
+icon drawn in the theme's colors. With no link, `/` is still the owner's
+Matrix screen (`OWNER` in `themes.js`). Tapping the name at the top of any
+screen opens Customize: edit this screen in the builder, or start a new one.
+
 ## Files
 
 | File | What |
 | --- | --- |
 | `index.html` | The page. |
 | `app.css` | Theme and layout (safe areas for the notch and home bar). |
-| `app.js` | Shortcuts and repository list (`APPS`, `REPOS` at the top), rain, widgets, menu. |
+| `themes.js` | Themes, icons, the app catalog, the owner's screen (`OWNER`), and the link codec + sanitizer. |
+| `app.js` | The home screen: background effects, widgets, launcher, folders, Customize. |
+| `build.html`, `build.css`, `build.js` | Blackout Studio, the builder at `/build`. |
+| `vercel.json` | Clean URLs, so `/build` serves `build.html`. |
 | `manifest.json` | Home-screen app settings. |
 | `sw.js` | Offline cache. **Bump `CACHE` (e.g. `-v7`) whenever a file changes**, or installed copies keep the old files. |
 | `matrix-icon.svg` | Icon. |
 | `apple-touch-icon.png` | 180×180 iPhone home-screen icon, rendered from the SVG. |
 
-To change a shortcut or add a repository, edit `APPS` or `REPOS` in `app.js`
+To change the owner's shortcuts or repositories, edit `OWNER` in `themes.js`
 and bump the cache in `sw.js`.
 
 ## History
