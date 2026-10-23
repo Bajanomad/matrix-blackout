@@ -438,3 +438,13 @@ a { color: inherit; text-decoration: none; }
 .light.unset { border-style: dashed; opacity: 0.6; }
 .ro em { font-style: normal; }
 .per { margin-top: 6px; }
+
+/* ---------- Projects ---------- */
+.commit { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding: 8px 10px; border-left: 2px solid var(--accent); background: rgba(var(--accent-rgb), 0.05); border-radius: 0 6px 6px 0; }
+.commit b { font-weight: 400; color: var(--bright); overflow-wrap: anywhere; }
+.commit small { color: var(--dim); font-size: 0.7rem; letter-spacing: 0.04em; }
+.pr-head { margin: 10px 0 4px; }
+.pr { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed rgba(var(--accent-rgb), 0.12); }
+.pr-num { flex: none; color: var(--info); font-size: 0.78rem; }
+.pr-title { flex: 1; min-width: 0; color: var(--bright); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-link { display: inline-block; margin-top: 4px; color: var(--info); font-size: 0.72rem; letter-spacing: 0.08em; }

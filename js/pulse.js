@@ -300,7 +300,7 @@
 
   /* ---------- Traffic, last 7 days (/api/traffic) ---------- */
   function trafficCard() {
-    var c = BO.card("traffic", { title: "Traffic · 7d", icon: "waves", open: true, wide: true });
+    var c = BO.card("traffic", { title: "Traffic · 7d", icon: "news", open: true, wide: true });
     var box = el("div");
     c.body.append(box);
     BO.feed("traffic?tz=" + new Date().getTimezoneOffset(), 10 * 60 * 1000, function (res) {
