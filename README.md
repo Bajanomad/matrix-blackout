@@ -110,7 +110,7 @@ screen opens Customize: edit this screen in the builder, or start a new one.
 | `build.html`, `build.css`, `build.js` | Blackout Studio, the builder at `/build`. |
 | `vercel.json` | Clean URLs, so `/build` serves `build.html` and `/screen` serves `screen.html`. |
 | `manifest.json` | Home-screen app settings. |
-| `sw.js` | Offline cache. **Bump `CACHE` (e.g. `-v15`) whenever a file changes**, or installed copies keep the old files. |
+| `sw.js` | Offline cache. **Bump `CACHE` (e.g. `-v16`) whenever a file changes**, or installed copies keep the old files. |
 | `matrix-icon.svg` | Icon: a glowing ring with Matrix code rain falling behind an anarchy sign (animated SVG; regenerate with `python3 tools/make-icons.py`). |
 | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon-32.png`, `favicon.ico` | PNG/ICO renders of the ring icon for the manifest and older browsers. |
 | `apple-touch-icon.png` | 180×180 iPhone home-screen icon, rendered from the SVG. |

@@ -631,6 +631,7 @@
   /* =====================================================================
    * User modules: the templates FABRICATE builds from
    * ===================================================================== */
+  var SCHEMES = { bridge: "Bridge (orange/green)", ice: "Ice (cyan/magenta)", alert: "Red Alert", phosphor: "Phosphor (Matrix)", amber: "Amber CRT" };
   var ACCENTS = { orange: "#ff7a1a", green: "#39ff88", cyan: "#2ef2ff", magenta: "#ff3bd4", red: "#ff3b4e" };
   var layout; // { ship, order, hidden, modules }
   var saveTimer = 0;
@@ -973,7 +974,7 @@
     var ids = function (list) { return (Array.isArray(list) ? list : []).filter(function (x) { return typeof x === "string" && x.length < 40; }).slice(0, 200); };
     var ship = raw.ship && typeof raw.ship === "object" ? raw.ship : {};
     return {
-      ship: { name: str(ship.name, 20, "BLACKOUT"), sub: str(ship.sub, 28, "BRIDGE // CMD") },
+      ship: { name: str(ship.name, 20, "BLACKOUT"), sub: str(ship.sub, 28, "BRIDGE // CMD"), scheme: SCHEMES[ship.scheme] ? ship.scheme : "bridge", haptics: ship.haptics !== false },
       order: ids(raw.order),
       hidden: ids(raw.hidden),
       modules: modules,
@@ -1141,6 +1142,7 @@
       }, kids);
       tile.addEventListener("click", function (e) {
         if (arranging || e.target.closest(".tile-quick,.tile-edit")) return;
+        haptic();
         openModule(id);
       });
       tile.addEventListener("keydown", function (e) {
@@ -1396,7 +1398,12 @@
     toast("Imported " + incoming.modules.length + " module" + (incoming.modules.length === 1 ? "" : "s") + ".");
   }
 
+  // A short tick on tap where the phone supports it (Android; iOS ignores it).
+  function haptic(ms) { if (layout.ship.haptics && navigator.vibrate) navigator.vibrate(ms || 8); }
+
   function applyShip() {
+    if (layout.ship.scheme === "bridge") document.documentElement.removeAttribute("data-scheme");
+    else document.documentElement.setAttribute("data-scheme", layout.ship.scheme);
     $("ship-name").textContent = layout.ship.name;
     $("ship-sub").textContent = layout.ship.sub;
     document.title = layout.ship.name + " // BRIDGE";
@@ -1406,6 +1413,19 @@
     var shipName = el("input", { maxlength: "20", value: layout.ship.name });
     var shipSub = el("input", { maxlength: "28", value: layout.ship.sub });
     var status = el("p", { class: "note", role: "status" });
+    var schemeSeg = el("div", { class: "seg", style: "flex-wrap:wrap" });
+    var hapticSeg = el("div", { class: "seg" });
+    function drawPrefs() {
+      schemeSeg.textContent = "";
+      Object.keys(SCHEMES).forEach(function (k) {
+        schemeSeg.appendChild(el("button", { type: "button", text: SCHEMES[k].split(" (")[0], title: SCHEMES[k], "aria-pressed": String(layout.ship.scheme === k), onclick: function () { layout.ship.scheme = k; applyShip(); saveLayout(); drawPrefs(); haptic(15); } }));
+      });
+      hapticSeg.textContent = "";
+      [["On", true], ["Off", false]].forEach(function (o) {
+        hapticSeg.appendChild(el("button", { type: "button", text: o[0], "aria-pressed": String(layout.ship.haptics === o[1]), onclick: function () { layout.ship.haptics = o[1]; saveLayout(); drawPrefs(); haptic(15); } }));
+      });
+    }
+    drawPrefs();
     var file = el("input", { type: "file", accept: "application/json,.json", hidden: true });
     file.addEventListener("change", function () {
       var f = file.files && file.files[0];
@@ -1419,10 +1439,12 @@
       el("label", { class: "field" }, [el("span", { text: "Subtitle" }), shipSub]),
       el("div", { class: "btns" }, [
         el("button", { class: "btn solid", type: "button", text: "Save name", onclick: function () {
-          layout.ship = sanitizeLayout({ ship: { name: shipName.value, sub: shipSub.value } }).ship;
+          layout.ship = sanitizeLayout({ ship: { name: shipName.value, sub: shipSub.value, scheme: layout.ship.scheme, haptics: layout.ship.haptics } }).ship;
           applyShip(); saveLayout(); status.textContent = "Ship renamed.";
         } }),
       ]),
+      el("div", { class: "field" }, [el("span", { text: "Color scheme" }), schemeSeg]),
+      el("div", { class: "field" }, [el("span", { text: "Haptic taps" }), hapticSeg]),
       el("div", { class: "btns" }, [
         el("button", { class: "btn", type: "button", text: "Share link", onclick: function () {
           var url = location.origin + "/#bridge=" + toB64(JSON.stringify(exportable()));

@@ -580,3 +580,12 @@ a { color: var(--green); }
   .grid-floor, .sweep, .radar, .arranging .tile, .sheet { animation: none; }
   .gauge .fill { transition: none; }
 }
+
+/* ---------- Bridge color schemes (SHARE → Scheme) ----------
+   The default is orange structure + green readouts. Each scheme re-points
+   the same variables, so every panel, tile and gauge follows. */
+:root[data-scheme="ice"] { --orange: #2ef2ff; --orange-hi: #a8f9ff; --orange-dim: rgb(46 242 255 / 0.45); --orange-faint: rgb(46 242 255 / 0.12); --green: #ff3bd4; --green-hi: #ffc2f2; --green-dim: rgb(255 59 212 / 0.5); --green-faint: rgb(255 59 212 / 0.1); --text: #e6fbff; }
+:root[data-scheme="alert"] { --orange: #ff3b4e; --orange-hi: #ff9aa4; --orange-dim: rgb(255 59 78 / 0.5); --orange-faint: rgb(255 59 78 / 0.12); --green: #ffd23f; --green-hi: #fff2c2; --green-dim: rgb(255 210 63 / 0.5); --green-faint: rgb(255 210 63 / 0.1); --text: #ffe6e8; }
+:root[data-scheme="phosphor"] { --orange: #00ff41; --orange-hi: #b6ffc8; --orange-dim: rgb(0 255 65 / 0.45); --orange-faint: rgb(0 255 65 / 0.1); --green: #d4ffe4; --green-hi: #ffffff; --green-dim: rgb(212 255 228 / 0.5); --green-faint: rgb(212 255 228 / 0.08); --text: #d4ffe4; }
+:root[data-scheme="amber"] { --orange: #ffb000; --orange-hi: #ffe2a8; --orange-dim: rgb(255 176 0 / 0.45); --orange-faint: rgb(255 176 0 / 0.1); --green: #fff4dc; --green-hi: #ffffff; --green-dim: rgb(255 244 220 / 0.45); --green-faint: rgb(255 244 220 / 0.08); --text: #ffe2a8; }
+:root[data-scheme="alert"] .sweep { background: linear-gradient(transparent, rgb(255 59 78 / 0.12), transparent); animation-duration: 2.4s; }
