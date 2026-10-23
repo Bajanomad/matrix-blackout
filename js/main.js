@@ -23,9 +23,11 @@
         t.tabIndex = n === i ? 0 : -1;
       });
       BO.save("screen", i);
-      if (first || BO.REDUCE) return;
-      document.body.classList.remove("glitch");
-      void document.body.offsetWidth;
+      if (!first) glitch();
+    }
+    // One short glitch per change, whether it came from a tap or a swipe.
+    function glitch() {
+      if (BO.REDUCE || document.body.classList.contains("glitch")) return;
       document.body.classList.add("glitch");
       clearTimeout(glitchTimer);
       glitchTimer = setTimeout(function () { document.body.classList.remove("glitch"); }, 360);
@@ -47,7 +49,7 @@
       if (!queued) { queued = true; requestAnimationFrame(sync); }
     }, { passive: true });
     tabs.forEach(function (t, i) {
-      t.addEventListener("click", function () { go(i); });
+      t.addEventListener("click", function () { if (i !== current) glitch(); go(i); });
       t.addEventListener("keydown", function (e) {
         var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
         if (!d) return;
