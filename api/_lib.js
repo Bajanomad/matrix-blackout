@@ -81,7 +81,11 @@ async function each(items, fn) {
   return Promise.all(items.map((it) => fn(it).catch((e) => ({ error: String(e.message || e) }))));
 }
 
+// This site's own address, for a project whose site is "/". Prefer Vercel's
+// own production URL over request headers, which a caller could spoof.
 function origin(req) {
+  const prod = env("VERCEL_PROJECT_PRODUCTION_URL");
+  if (prod) return "https://" + prod;
   const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost";
   const proto = req.headers["x-forwarded-proto"] || (String(host).startsWith("localhost") ? "http" : "https");
   return proto + "://" + host;
