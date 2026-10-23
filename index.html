@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <script>
+    // Studio links (/#c=...) were made for the themed one-page screen: send them there.
+    if (location.hash.indexOf("#c=") === 0) location.replace("/screen" + location.hash);
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <meta name="robots" content="noindex, nofollow" />
@@ -9,6 +13,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Blackout" />
+  <meta name="format-detection" content="telephone=no" />
   <title>MATRIX // BLACKOUT</title>
   <link rel="manifest" href="/manifest.json" />
   <meta name="description" content="Matrix Blackout: a falling-code control screen for iPhone." />
@@ -27,8 +32,34 @@
   <link rel="stylesheet" href="/app.css" />
 </head>
 <body>
+  <canvas id="rain" aria-hidden="true"></canvas>
+  <div id="scan" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <img src="/matrix-icon.svg" alt="" width="22" height="22" />
+      <span class="brand-name">BLACKOUT</span>
+      <span class="net" id="net" aria-live="polite"></span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Screens">
+      <button class="tab" role="tab" id="tab-0" aria-controls="screen-0" aria-selected="true">Basics</button>
+      <button class="tab" role="tab" id="tab-1" aria-controls="screen-1" aria-selected="false" tabindex="-1">My Sites</button>
+      <button class="tab" role="tab" id="tab-2" aria-controls="screen-2" aria-selected="false" tabindex="-1">Shortcuts</button>
+      <span class="tab-light" aria-hidden="true"></span>
+    </nav>
+  </header>
+
+  <main class="pager" id="pager">
+    <section class="screen" id="screen-0" role="tabpanel" aria-labelledby="tab-0"><div class="stack" id="stack-0"></div></section>
+    <section class="screen" id="screen-1" role="tabpanel" aria-labelledby="tab-1"><div class="stack" id="stack-1"></div></section>
+    <section class="screen" id="screen-2" role="tabpanel" aria-labelledby="tab-2"><div class="stack" id="stack-2"></div></section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <noscript><p style="color:#35ff76;font-family:monospace;padding:16px">Blackout needs JavaScript turned on.</p></noscript>
   <script src="/themes.js"></script>
+  <script src="/config.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
