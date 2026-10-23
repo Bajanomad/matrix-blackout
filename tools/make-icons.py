@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the Matrix Blackout icon set: a ring with Matrix code rain falling inside.
+"""Generate the Matrix Blackout icon set: a ring with Matrix code rain falling behind an anarchy sign.
 
 Writes matrix-icon.svg (animated, SMIL) plus static SVG frames that headless
 Chromium turns into the PNG/ICO files. Usage: python3 tools/make-icons.py <out_dir>
@@ -44,6 +44,14 @@ def column(i, animate):
                 'dur="%.1fs" begin="-%.2fs" repeatCount="indefinite"/>%s</g>' % (travel, dur, head_y / travel * dur, g))
     return '<g transform="translate(0 %.1f)">%s</g>' % (head_y, g)
 
+# Anarchy sign in the middle: a dark halo dims the rain behind it, then a circled A
+# whose apex, legs and crossbar break out of its circle.
+ANARCHY = (
+    '<circle cx="256" cy="262" r="150" fill="url(#halo)"/>'
+    '<g fill="none" stroke="%s" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">'
+    '<circle cx="256" cy="262" r="104" stroke-width="16"/>'
+    '<path d="M178 386L256 122L334 386M146 300H366" stroke-width="18"/></g>' % HEAD)
+
 def svg(animate=True, shape="circle", scale=1.0):
     """shape: circle (transparent corners) | square (black full-bleed, for iOS/maskable)."""
     R = 232
@@ -52,14 +60,14 @@ def svg(animate=True, shape="circle", scale=1.0):
     body = (
         '<circle cx="256" cy="256" r="%d" fill="%s"/>' % (R, BG) +
         '<g clip-path="url(#in)"><g fill="none" stroke-linecap="round" stroke-width="%d">%s</g>'
-        '<circle cx="256" cy="256" r="196" fill="url(#vig)"/></g>'
+        '<circle cx="256" cy="256" r="196" fill="url(#vig)"/></g>' % (STROKE, cols) + ANARCHY +
         '<circle cx="256" cy="256" r="%d" fill="none" stroke="%s" stroke-width="12" filter="url(#glow)"/>'
-        '<circle cx="256" cy="256" r="%d" fill="none" stroke="%s" stroke-width="3" stroke-opacity=".55"/>' % (STROKE, cols, R - 7, GREEN, R - 26, GREEN))
+        '<circle cx="256" cy="256" r="%d" fill="none" stroke="%s" stroke-width="3" stroke-opacity=".55"/>' % (R - 7, GREEN, R - 26, GREEN))
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">'
             '<defs><clipPath id="in"><circle cx="256" cy="256" r="196"/></clipPath>'
             '<filter id="glow" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="5000" height="5000"><feGaussianBlur stdDeviation="6" result="b"/>'
             '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
-            '<radialGradient id="vig"><stop offset="60%%" stop-color="#000" stop-opacity="0"/><stop offset="100%%" stop-color="#000" stop-opacity=".6"/></radialGradient></defs>'
+            '<radialGradient id="halo"><stop offset="55%%" stop-color="#000" stop-opacity=".85"/><stop offset="100%%" stop-color="#000" stop-opacity="0"/></radialGradient><radialGradient id="vig"><stop offset="60%%" stop-color="#000" stop-opacity="0"/><stop offset="100%%" stop-color="#000" stop-opacity=".6"/></radialGradient></defs>'
             '%s<g transform="translate(%.1f %.1f) scale(%.3f)">%s</g></svg>'
             % (bg, S * (1 - scale) / 2, S * (1 - scale) / 2, scale, body))
 
