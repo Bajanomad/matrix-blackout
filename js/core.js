@@ -263,7 +263,8 @@
     if (!navigator.onLine) return Promise.resolve({ state: keep ? "cached" : "offline", data: keep && keep.data, at: keep && keep.at, error: "offline" });
     var ctl = window.AbortController ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
-    return fetch("/api/" + name + (fresh ? "?fresh=1" : ""), { headers: headers, signal: ctl && ctl.signal, cache: fresh ? "no-store" : "default" })
+    var sep = name.indexOf("?") === -1 ? "?" : "&";
+    return fetch("/api/" + name + (fresh ? sep + "fresh=1" : ""), { headers: headers, signal: ctl && ctl.signal, cache: fresh ? "no-store" : "default" })
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (body) {
           if (r.status === 401) return { state: "locked", data: keep && keep.data, at: keep && keep.at, error: "locked" };
@@ -330,6 +331,25 @@
       sources.forEach(function (s) { if (Date.now() - s.last >= Math.min(s.every, 60000)) runSource(s, false); });
     });
     window.addEventListener("online", function () { BO.refreshAll(false); });
+  };
+
+  /** BO.feed("google", ms, fn): one request per route, shared by every card
+   * that listens. fn(res) gets the last good copy at once, then live results. */
+  var feeds = {};
+  BO.feed = function (name, everyMs, fn) {
+    var f = feeds[name];
+    if (!f) {
+      f = feeds[name] = { fns: [], res: BO.kept(name) };
+      BO.source(everyMs, function (fresh) {
+        return BO.api(name, fresh).then(function (res) {
+          // A failed call keeps showing the last good copy, marked stale.
+          f.res = res;
+          f.fns.forEach(function (g) { g(res); });
+        });
+      });
+    }
+    f.fns.push(fn);
+    fn(f.res);
   };
 
   /* ---------- Clock tick: one timer for every per-second readout ---------- */

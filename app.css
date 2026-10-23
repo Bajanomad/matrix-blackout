@@ -318,7 +318,7 @@ a { color: inherit; text-decoration: none; }
 .ok-t { color: var(--accent); } .warn-t { color: var(--warn); } .bad-t { color: var(--bad); } .info-t { color: var(--info); }
 
 /* Readout grid: small labelled numbers, trading-floor dense */
-.readouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin: 6px 0; }
+.readouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; margin: 6px 0; }
 .ro { padding: 7px 8px; border: 1px solid rgba(var(--accent-rgb), 0.18); border-radius: 7px; background: rgba(0, 0, 0, 0.45); min-width: 0; }
 .ro b { display: block; font: 1.5rem/1.05 var(--display); color: var(--bright); text-shadow: var(--text-glow); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ro span { display: block; font-size: 0.56rem; letter-spacing: 0.16em; color: var(--dim); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -394,3 +394,47 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---------- Pulse ---------- */
+.clock { display: flex; align-items: baseline; justify-content: center; gap: 2px; color: var(--bright); text-shadow: var(--text-glow); font-family: var(--display); font-variant-numeric: tabular-nums; cursor: pointer; }
+.clock-hm { font-size: 5rem; line-height: 0.95; }
+.clock-s { font-size: 2rem; color: var(--accent); }
+.clock-ap { font-size: 1.4rem; margin-left: 6px; color: var(--dim); }
+.clock-date { text-align: center; color: var(--accent); font-size: 0.78rem; letter-spacing: 0.08em; margin: 2px 0 4px; }
+.wx-place { color: var(--dim); font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.wx-now { display: flex; align-items: center; gap: 12px; margin: 4px 0 2px; }
+.wx-now > .ico { width: 42px; height: 42px; color: var(--accent); filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.6)); }
+.wx-temp { font: 3.5rem/1 var(--display); color: var(--bright); text-shadow: var(--text-glow); }
+.wx-cond { display: flex; flex-direction: column; color: var(--dim); font-size: 0.78rem; }
+.wx-cond b { color: var(--accent); font-weight: 400; font-size: 0.98rem; }
+.wx-days { list-style: none; margin: 6px 0 0; padding: 0; }
+.wx-days li { display: grid; grid-template-columns: 2.6em 20px 1fr auto auto; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px dashed rgba(var(--accent-rgb), 0.12); font-size: 0.82rem; }
+.wx-days .d { color: var(--accent); letter-spacing: 0.08em; }
+.wx-days .ico { width: 18px; height: 18px; color: var(--accent); }
+.wx-days .c { color: var(--dim); font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wx-days .p { color: var(--info); font-size: 0.72rem; }
+.wx-days .t { color: var(--bright); font-variant-numeric: tabular-nums; }
+.events { list-style: none; margin: 0; padding: 0; }
+.events li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-bottom: 1px dashed rgba(var(--accent-rgb), 0.12); }
+.ev-when { flex: none; width: 64px; display: flex; flex-direction: column; }
+.ev-when b { font: 1.25rem/1 var(--display); font-weight: 400; color: var(--bright); }
+.ev-when span { font-size: 0.56rem; letter-spacing: 0.18em; color: var(--dim); }
+.ev-what { min-width: 0; display: flex; flex-direction: column; }
+.ev-what b { font-weight: 400; color: var(--bright); overflow-wrap: anywhere; }
+.ev-what small { color: var(--dim); font-size: 0.72rem; }
+.events li.live .ev-when b { color: var(--accent); text-shadow: var(--text-glow); animation: pulse 1.6s ease-in-out infinite; }
+.gauges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-around; }
+.lights { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.light {
+  display: grid; grid-template-columns: 10px 1fr; column-gap: 8px; align-items: center;
+  padding: 8px 10px; border: 1px solid rgba(var(--accent-rgb), 0.2); border-radius: 8px; background: rgba(0, 0, 0, 0.45);
+}
+.light .led { grid-row: span 2; width: 10px; height: 10px; }
+.light b { font-weight: 400; color: var(--bright); font-size: 0.84rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.light span { font-size: 0.66rem; letter-spacing: 0.08em; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.light.bad { border-color: rgba(255, 59, 78, 0.6); background: rgba(255, 30, 60, 0.1); }
+.light.bad span { color: var(--bad); }
+.light.warn span { color: var(--warn); }
+.light.unset { border-style: dashed; opacity: 0.6; }
+.ro em { font-style: normal; }
+.per { margin-top: 6px; }
