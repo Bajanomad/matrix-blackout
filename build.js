@@ -380,21 +380,21 @@
 
   /* ---------- Preview ---------- */
   function updateLink() {
-    var link = B.linkFor(clean(), "/");
+    var link = B.linkFor(clean(), "/screen");
     linkBox.value = link;
     var open = document.querySelector(".open-link");
     if (open) open.setAttribute("href", link);
   }
 
   function updatePreview() {
-    var src = "/#c=" + B.encode(clean());
+    var src = "/screen#c=" + B.encode(clean());
     frame.setAttribute("src", src);
     var full = document.querySelector(".full-preview iframe");
     if (full) full.setAttribute("src", src);
   }
 
   function openPreview() {
-    var f = el("iframe", { title: "Preview of your home screen", src: "/#c=" + B.encode(clean()) });
+    var f = el("iframe", { title: "Preview of your home screen", src: "/screen#c=" + B.encode(clean()) });
     var box = el("div", { class: "full-preview", role: "dialog", "aria-modal": "true", "aria-label": "Preview" }, [
       el("button", { class: "btn primary close-preview", type: "button", text: "Back to editing", onclick: function () { box.remove(); } }),
       f,

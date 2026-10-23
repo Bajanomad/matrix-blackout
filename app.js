@@ -1,23 +1,17 @@
-/* BLACKOUT — phone home screen: a themed background, widgets, an app
- * launcher and folders. With no link it is the owner's Matrix screen; a
- * link made in the builder (/#c=...) carries anyone else's whole screen:
- * theme, name, apps, folders, widgets and weather spot (themes.js).
- * All content is built with DOM APIs and textContent. */
+/* BLACKOUT — the home screen: three swipeable screens (Basics, My Sites,
+ * Shortcuts) of drop-down cards over Matrix code rain. Links, sites and
+ * shortcuts come from config.js; icons from themes.js. All content is built
+ * with DOM APIs and textContent. */
 (function () {
   "use strict";
 
-  var B = window.BLACKOUT;
+  var C = window.BLACKOUT_CONFIG;
+  var ICONS = window.BLACKOUT.ICONS;
   var REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var SVGNS = "http://www.w3.org/2000/svg";
+  var $ = function (id) { return document.getElementById(id); };
 
-  var fromLink = B.fromHash(location.hash);
-  var CFG = fromLink || B.sanitize(B.OWNER);
-  var THEME = B.THEMES[CFG.t];
-  var SPOT_KEY = "blackout.spot";
-
-  // The builder's preview swaps the link in place: rebuild the screen.
-  window.addEventListener("hashchange", function () { location.reload(); });
-
+  /* ---------- Helpers ---------- */
   /** el("div", {class: "x", text: "hi"}, [children]) */
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
@@ -42,7 +36,8 @@
     var svg = document.createElementNS(SVGNS, "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("aria-hidden", "true");
-    (B.ICONS[name] || B.ICONS.link).forEach(function (part) {
+    svg.setAttribute("class", "ico");
+    (ICONS[name] || ICONS.link).forEach(function (part) {
       var node = document.createElementNS(SVGNS, part[0]);
       Object.keys(part[1]).forEach(function (k) { node.setAttribute(k, part[1][k]); });
       svg.appendChild(node);
@@ -50,322 +45,256 @@
     return svg;
   }
 
-  /** A panel: title bar + body children. */
-  function panel(title, children, extraClass) {
-    return el("section", { class: "panel" + (extraClass ? " " + extraClass : ""), "aria-label": title }, [
-      el("div", { class: "term-bar" }, [
-        el("span", { class: "dot on" }), el("span", { class: "dot" }), el("span", { class: "dot" }),
-        el("span", { class: "label", text: title }),
-      ]),
-    ].concat(children));
+  // localStorage can be missing or throw (private mode): everything works without it.
+  function load(key, fallback) {
+    try { var v = localStorage.getItem("bo." + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem("bo." + key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
   }
 
   function pad(n) { return (n < 10 ? "0" : "") + n; }
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-  /* ---------- Theme: data-theme, fonts, and the home-screen identity ---------- */
-  function applyTheme() {
-    document.documentElement.setAttribute("data-theme", CFG.t);
-    // index.html already loads the Matrix fonts.
-    if (CFG.t !== "matrix") document.head.appendChild(el("link", { rel: "stylesheet", href: B.fontHref(CFG.t) }));
-    if (!fromLink) return; // the owner's screen keeps its own manifest and icon
+  var toastTimer = 0;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 4200);
+  }
 
-    document.title = CFG.n;
-    var meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (meta) meta.setAttribute("content", CFG.n);
-    var color = document.querySelector('meta[name="theme-color"]');
-    if (color) color.setAttribute("content", THEME.icon.bg);
-    // Without a manifest, iOS saves this exact address (link included) when
-    // it is added to the Home Screen, so the screen opens as built.
-    var manifest = document.querySelector('link[rel="manifest"]');
-    if (manifest) manifest.remove();
-    themeIcon(function (png) {
-      var touch = document.querySelector('link[rel="apple-touch-icon"]');
-      if (touch) touch.setAttribute("href", png);
-      var fav = document.querySelector('link[rel="icon"]');
-      if (fav) { fav.setAttribute("href", png); fav.setAttribute("type", "image/png"); }
+  // Web links open over the app (Safari sheet) so the home screen stays put;
+  // same-site pages and app links (tel:, shortcuts://...) open in place.
+  function linkAttrs(url) {
+    var web = /^https?:/i.test(url) && url.indexOf(location.origin) !== 0;
+    return { href: url, target: web ? "_blank" : null, rel: web ? "noopener" : null };
+  }
+
+  /* ---------- Drop-down card ----------
+   * card(id, {title, icon, open}) → {node, body, summary(text)}. Tapping the
+   * header folds it open or shut (animated in CSS); the choice is remembered. */
+  function card(id, opts) {
+    var open = load("open." + id, !!opts.open);
+    var bodyId = "body-" + id;
+    var sum = el("span", { class: "card-sum" });
+    var head = el("button", { class: "card-head", type: "button", "aria-expanded": String(open), "aria-controls": bodyId }, [
+      icon(opts.icon),
+      el("span", { class: "card-title", text: opts.title }),
+      sum,
+      el("span", { class: "chev", "aria-hidden": "true" }),
+    ]);
+    var inner = el("div", { class: "card-pad" });
+    var body = el("div", { class: "card-body", id: bodyId, role: "region", "aria-label": opts.title }, [el("div", { class: "card-clip" }, [inner])]);
+    var node = el("article", { class: "card" + (open ? " open" : "") }, [head, body]);
+    if (!open) body.inert = true;
+    head.addEventListener("click", function () {
+      open = !open;
+      node.classList.toggle("open", open);
+      head.setAttribute("aria-expanded", String(open));
+      body.inert = !open;
+      save("open." + id, open);
+    });
+    return { node: node, body: inner, summary: function (t) { sum.textContent = t; } };
+  }
+
+  function row(k, v) { return el("div", { class: "kv" }, [el("span", { text: k }), el("b", { text: v })]); }
+  function bar(pct) { return el("div", { class: "bar" }, [el("i", { style: "width:" + Math.max(0, Math.min(100, pct)).toFixed(1) + "%" })]); }
+  function placeholder(title, text) {
+    return el("div", { class: "ph" }, [el("span", { class: "tag", text: "placeholder" }), el("b", { text: title }), el("p", { text: text })]);
+  }
+
+  // Everything that changes with the clock registers here; one timer drives it.
+  var tickers = [];
+  function every(fn) { tickers.push(fn); fn(new Date()); }
+  function startTicking() {
+    function tick() {
+      var now = new Date();
+      tickers.forEach(function (fn) { fn(now); });
+      setTimeout(tick, 1000 - (Date.now() % 1000) + 5);
+    }
+    setTimeout(tick, 1000 - (Date.now() % 1000) + 5);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) { var now = new Date(); tickers.forEach(function (fn) { fn(now); }); }
     });
   }
 
-  // A 180x180 home-screen icon in the theme's colors, drawn from its glyph.
-  function themeIcon(done) {
-    var look = THEME.icon;
-    var parts = (B.ICONS[look.glyph] || B.ICONS.star).map(function (p) {
-      return "<" + p[0] + Object.keys(p[1]).map(function (k) { return " " + k + '="' + p[1][k] + '"'; }).join("") + "/>";
-    }).join("");
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + look.fg +
-      '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + parts + "</svg>";
-    var img = new Image();
-    img.onload = function () {
-      var c = document.createElement("canvas");
-      c.width = c.height = 180;
-      var ctx = c.getContext("2d");
-      if (!ctx) return;
-      var g = ctx.createRadialGradient(90, 70, 10, 90, 90, 130);
-      g.addColorStop(0, look.bg === "#000000" ? "#04140a" : look.bg);
-      g.addColorStop(1, "#000000");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 180, 180);
-      ctx.shadowColor = look.fg;
-      ctx.shadowBlur = 14;
-      ctx.drawImage(img, 36, 36, 108, 108);
-      try { done(c.toDataURL("image/png")); } catch (e) { /* tainted canvas: keep the default */ }
-    };
-    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-  }
-
-  /* ---------- Background effects ---------- */
-  function startEffect() {
-    var canvas = el("canvas", { id: "rain", "aria-hidden": "true" });
-    document.body.prepend(el("div", { id: "scan", "aria-hidden": "true" }));
-    document.body.prepend(canvas);
+  /* ---------- Code rain ---------- */
+  function startRain() {
+    var canvas = $("rain");
     var ctx = canvas.getContext("2d");
-    if (!ctx || THEME.fx === "none") return;
-    var w = 0, h = 0, raf = 0, last = 0;
-    var fx = EFFECTS[THEME.fx]();
-    var fps = fx.fps || 24;
-
+    if (!ctx) return;
+    var GLYPHS = "アカサタナハマヤラワイキシチニヒミリウクスツヌフムユルエケセテネヘメレオコソトノホモヨロ0123456789";
+    var size = 16, drops = [], w = 0, h = 0, raf = 0, last = 0;
     function resize() {
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
       w = window.innerWidth; h = window.innerHeight;
       canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr);
-      canvas.style.width = w + "px"; canvas.style.height = h + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      fx.resize(ctx, w, h);
+      drops = [];
+      for (var i = 0; i < Math.ceil(w / size); i++) drops[i] = Math.floor(Math.random() * -h / size);
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+    }
+    function frame() {
+      ctx.fillStyle = "rgba(0,0,0,0.08)"; ctx.fillRect(0, 0, w, h);
+      ctx.font = size + 'px "Share Tech Mono", ui-monospace, monospace';
+      ctx.textBaseline = "top";
+      for (var i = 0; i < drops.length; i++) {
+        var y = drops[i] * size;
+        if (y > 0) {
+          ctx.fillStyle = Math.random() > 0.96 ? "#d4ffe4" : "rgba(0,255,65,0.9)";
+          ctx.fillText(GLYPHS.charAt(Math.floor(Math.random() * GLYPHS.length)), i * size, y);
+        }
+        if (y > h && Math.random() > 0.975) drops[i] = 0; else drops[i]++;
+      }
     }
     function loop(now) {
       raf = requestAnimationFrame(loop);
-      if (now - last < 1000 / fps) return;
-      last = now; fx.frame(ctx, w, h, now);
+      if (now - last < 50) return; // 20 fps is plenty for rain
+      last = now; frame();
     }
     function start() { if (!raf) raf = requestAnimationFrame(loop); }
     function stop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
-
     resize();
     window.addEventListener("resize", resize, { passive: true });
-    if (REDUCE) { fx.frame(ctx, w, h, 0); return; } // one still frame under Reduce Motion
+    if (REDUCE) { for (var i = 0; i < 40; i++) frame(); return; } // a still frame under Reduce Motion
     document.addEventListener("visibilitychange", function () { if (document.hidden) stop(); else start(); });
     start();
   }
 
-  var EFFECTS = {
-    // Katakana code rain.
-    rain: function () {
-      var GLYPHS = "アカサタナハマヤラワイキシチニヒミリウクスツヌフムユルエケセテネヘメレオコソトノホモヨロ0123456789";
-      var size = 16, drops = [];
-      return {
-        resize: function (ctx, w, h) {
-          drops = [];
-          for (var i = 0; i < Math.ceil(w / size); i++) drops[i] = Math.floor(Math.random() * -h / size);
-          ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
-        },
-        frame: function (ctx, w, h) {
-          ctx.fillStyle = "rgba(0,0,0,0.07)"; ctx.fillRect(0, 0, w, h);
-          ctx.font = size + 'px "Share Tech Mono", ui-monospace, monospace';
-          ctx.textBaseline = "top";
-          for (var i = 0; i < drops.length; i++) {
-            var y = drops[i] * size;
-            if (y > 0) {
-              ctx.fillStyle = Math.random() > 0.96 ? "#d4ffe4" : "rgba(0,255,65,0.9)";
-              ctx.fillText(GLYPHS.charAt(Math.floor(Math.random() * GLYPHS.length)), i * size, y);
-            }
-            if (y > h && Math.random() > 0.975) drops[i] = 0; else drops[i]++;
-          }
-        },
-      };
-    },
+  /* ---------- Pager: three screens, tabs and the sliding light ---------- */
+  function startPager() {
+    var pager = $("pager");
+    var tabs = [].slice.call(document.querySelectorAll(".tab"));
+    var light = document.querySelector(".tab-light");
+    var current = -1, queued = false;
 
-    // Twinkling three-layer starfield drifting past, with a shooting star now and then.
-    stars: function () {
-      var stars = [], shot = null;
-      return {
-        fps: 30,
-        resize: function (ctx, w, h) {
-          stars = [];
-          var n = Math.round(w * h / 2600);
-          for (var i = 0; i < n; i++) {
-            var z = Math.random();
-            stars.push({ x: Math.random() * w, y: Math.random() * h, z: z, r: 0.4 + z * 1.3, p: Math.random() * 6.28 });
-          }
-        },
-        frame: function (ctx, w, h, t) {
-          ctx.clearRect(0, 0, w, h);
-          for (var i = 0; i < stars.length; i++) {
-            var s = stars[i];
-            s.y += 0.05 + s.z * 0.35;
-            if (s.y > h) { s.y = 0; s.x = Math.random() * w; }
-            var a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t / 700 + s.p)) * (0.4 + s.z * 0.6);
-            ctx.fillStyle = s.z > 0.85 ? "rgba(201,182,255," + a + ")" : "rgba(220,235,255," + a + ")";
-            ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
-          }
-          if (!shot && t && Math.random() < 0.004) shot = { x: Math.random() * w * 0.8 + w * 0.2, y: Math.random() * h * 0.4, life: 1 };
-          if (shot) {
-            var len = 90 * shot.life;
-            var g = ctx.createLinearGradient(shot.x, shot.y, shot.x + len, shot.y - len * 0.45);
-            g.addColorStop(0, "rgba(255,255,255," + shot.life + ")");
-            g.addColorStop(1, "rgba(124,196,255,0)");
-            ctx.strokeStyle = g; ctx.lineWidth = 1.6;
-            ctx.beginPath(); ctx.moveTo(shot.x, shot.y); ctx.lineTo(shot.x + len, shot.y - len * 0.45); ctx.stroke();
-            shot.x -= 9; shot.y += 4; shot.life -= 0.03;
-            if (shot.life <= 0) shot = null;
-          }
-        },
-      };
-    },
-
-    // Desert sunset: sky gradient, a low sun, mesa silhouettes, drifting dust.
-    desert: function () {
-      var motes = [], mesas = [];
-      return {
-        fps: 24,
-        resize: function (ctx, w, h) {
-          motes = [];
-          for (var i = 0; i < 40; i++) motes.push({ x: Math.random() * w, y: h * (0.35 + Math.random() * 0.65), v: 0.2 + Math.random() * 0.6, r: 0.6 + Math.random() * 1.6 });
-          mesas = [];
-          var x = -20;
-          while (x < w + 40) {
-            var mw = 60 + Math.random() * 120;
-            mesas.push({ x: x, w: mw, top: 0.06 + Math.random() * 0.1, cap: 0.25 + Math.random() * 0.3 });
-            x += mw + Math.random() * 60;
-          }
-        },
-        frame: function (ctx, w, h) {
-          var sky = ctx.createLinearGradient(0, 0, 0, h);
-          sky.addColorStop(0, "#1b0b06"); sky.addColorStop(0.45, "#5a2312"); sky.addColorStop(0.72, "#c4601f"); sky.addColorStop(0.82, "#f2a541"); sky.addColorStop(1, "#3a1a0c");
-          ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
-          var horizon = h * 0.82;
-          var sun = ctx.createRadialGradient(w * 0.68, horizon - 10, 4, w * 0.68, horizon - 10, 90);
-          sun.addColorStop(0, "rgba(255,226,150,0.95)"); sun.addColorStop(0.35, "rgba(255,170,70,0.55)"); sun.addColorStop(1, "rgba(255,120,40,0)");
-          ctx.fillStyle = sun; ctx.fillRect(0, 0, w, h);
-          ctx.fillStyle = "#24100a";
-          mesas.forEach(function (m) {
-            var top = horizon - h * m.top, inset = m.w * m.cap * 0.5;
-            ctx.beginPath();
-            ctx.moveTo(m.x, horizon + 2); ctx.lineTo(m.x + inset, top); ctx.lineTo(m.x + m.w - inset, top); ctx.lineTo(m.x + m.w, horizon + 2);
-            ctx.fill();
-          });
-          ctx.fillStyle = "#1a0b06"; ctx.fillRect(0, horizon, w, h - horizon);
-          motes.forEach(function (d) {
-            d.x += d.v; d.y += Math.sin(d.x / 40) * 0.15;
-            if (d.x > w + 4) { d.x = -4; d.y = h * (0.35 + Math.random() * 0.65); }
-            ctx.fillStyle = "rgba(255,214,150,0.35)";
-            ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 6.283); ctx.fill();
-          });
-        },
-      };
-    },
-
-    // Outrun: striped sun over a neon grid scrolling toward you.
-    grid: function () {
-      var offset = 0;
-      return {
-        fps: 30,
-        resize: function () {},
-        frame: function (ctx, w, h) {
-          var horizon = h * 0.62;
-          var sky = ctx.createLinearGradient(0, 0, 0, horizon);
-          sky.addColorStop(0, "#0b001c"); sky.addColorStop(1, "#3b0050");
-          ctx.fillStyle = sky; ctx.fillRect(0, 0, w, horizon);
-          var r = Math.min(w, h) * 0.26, cx = w / 2, cy = horizon - r * 0.35;
-          var sun = ctx.createLinearGradient(0, cy - r, 0, cy + r);
-          sun.addColorStop(0, "#ffd84a"); sun.addColorStop(0.55, "#ff5ea8"); sun.addColorStop(1, "#c41aff");
-          ctx.save();
-          ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.clip();
-          ctx.fillStyle = sun; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-          ctx.fillStyle = "#1a0030";
-          for (var i = 0; i < 7; i++) {
-            var y = cy + r * 0.05 + i * r * 0.14, th = 1.5 + i * 1.6;
-            ctx.fillRect(cx - r, y, r * 2, th);
-          }
-          ctx.restore();
-          ctx.fillStyle = "#12002a"; ctx.fillRect(0, horizon, w, h - horizon);
-          ctx.strokeStyle = "rgba(255,43,214,0.75)"; ctx.lineWidth = 1.2;
-          ctx.shadowColor = "#ff2bd6"; ctx.shadowBlur = 6;
-          for (var v = -12; v <= 12; v++) {
-            ctx.beginPath(); ctx.moveTo(cx + v * 18, horizon); ctx.lineTo(cx + v * w * 0.22, h); ctx.stroke();
-          }
-          offset = (offset + 0.012) % 1;
-          for (var j = 0; j < 14; j++) {
-            var p = (j + offset) / 14, y2 = horizon + (h - horizon) * p * p;
-            ctx.globalAlpha = Math.min(1, p * 2.5);
-            ctx.beginPath(); ctx.moveTo(0, y2); ctx.lineTo(w, y2); ctx.stroke();
-          }
-          ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-          ctx.fillStyle = "rgba(34,228,255,0.6)"; ctx.fillRect(0, horizon - 1, w, 2);
-        },
-      };
-    },
-
-    // Layered swells rolling in under a teal sky, with sparkles on the water.
-    waves: function () {
-      var glints = [];
-      return {
-        fps: 30,
-        resize: function (ctx, w, h) {
-          glints = [];
-          for (var i = 0; i < 26; i++) glints.push({ x: Math.random() * w, y: h * (0.58 + Math.random() * 0.4), p: Math.random() * 6.28 });
-        },
-        frame: function (ctx, w, h, t) {
-          var sky = ctx.createLinearGradient(0, 0, 0, h);
-          sky.addColorStop(0, "#032530"); sky.addColorStop(0.55, "#06495a"); sky.addColorStop(1, "#0a7486");
-          ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
-          var layers = [
-            { y: 0.6, a: 10, k: 0.012, s: 0.0006, c: "rgba(14,140,160,0.55)" },
-            { y: 0.7, a: 14, k: 0.009, s: -0.0008, c: "rgba(10,110,130,0.7)" },
-            { y: 0.8, a: 18, k: 0.007, s: 0.001, c: "rgba(6,80,98,0.85)" },
-            { y: 0.9, a: 16, k: 0.011, s: -0.0012, c: "rgba(4,56,70,0.95)" },
-          ];
-          layers.forEach(function (L) {
-            ctx.beginPath(); ctx.moveTo(0, h);
-            for (var x = 0; x <= w + 8; x += 8) {
-              ctx.lineTo(x, h * L.y + Math.sin(x * L.k + t * L.s) * L.a + Math.sin(x * L.k * 2.3 + t * L.s * 1.7) * L.a * 0.3);
-            }
-            ctx.lineTo(w, h); ctx.closePath(); ctx.fillStyle = L.c; ctx.fill();
-          });
-          glints.forEach(function (g) {
-            var a = Math.max(0, Math.sin(t / 500 + g.p));
-            ctx.fillStyle = "rgba(255,240,200," + a * 0.6 + ")";
-            ctx.fillRect(g.x, g.y, 2, 1.2);
-          });
-        },
-      };
-    },
-  };
-
-  /** Types `text` into `node`, then leaves a blinking cursor. */
-  function typeInto(node, text) {
-    var span = el("span");
-    node.textContent = "";
-    node.appendChild(span);
-    node.appendChild(el("span", { class: "cursor", "aria-hidden": "true" }));
-    if (REDUCE) { span.textContent = text; return; }
-    var i = 0;
-    (function next() {
-      span.textContent = text.slice(0, i);
-      if (i++ < text.length) setTimeout(next, 55);
-    })();
-  }
-
-  /* ---------- Widget: clock ---------- */
-  function clockWidget() {
-    var hm = el("span", { class: "hm" });
-    var sec = el("span", { class: "sec" });
-    var ap = el("span", { class: "ap" });
-    var date = el("div", { class: "clock-date" });
-    var fmt = new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" });
-    function tick() {
-      var now = new Date();
-      var parts = fmt.formatToParts(now);
-      hm.textContent = parts.filter(function (p) { return p.type !== "dayPeriod"; }).map(function (p) { return p.value; }).join("").trim();
-      ap.textContent = parts.filter(function (p) { return p.type === "dayPeriod"; }).map(function (p) { return p.value; }).join("");
-      sec.textContent = ":" + pad(now.getSeconds());
-      date.textContent = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+    function select(i) {
+      if (i === current) return;
+      current = i;
+      tabs.forEach(function (t, n) {
+        t.setAttribute("aria-selected", String(n === i));
+        t.tabIndex = n === i ? 0 : -1;
+      });
+      save("screen", i);
     }
-    tick();
-    setInterval(tick, 1000);
-    return panel(THEME.title("clock"), [el("div", { class: "clock-time" }, [hm, sec, ap]), date], "clock");
+    // The light follows the swipe itself, so it glides between tabs mid-drag.
+    function sync() {
+      queued = false;
+      var w = pager.clientWidth || 1;
+      var pos = Math.max(0, Math.min(tabs.length - 1, pager.scrollLeft / w));
+      light.style.setProperty("--pos", pos.toFixed(4));
+      select(Math.round(pos));
+    }
+    function go(i, instant) {
+      pager.scrollTo({ left: i * pager.clientWidth, behavior: instant || REDUCE ? "auto" : "smooth" });
+    }
+
+    pager.addEventListener("scroll", function () {
+      if (!queued) { queued = true; requestAnimationFrame(sync); }
+    }, { passive: true });
+    tabs.forEach(function (t, i) {
+      t.addEventListener("click", function () { go(i); });
+      t.addEventListener("keydown", function (e) {
+        var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+        if (!d) return;
+        e.preventDefault();
+        var n = (current + d + tabs.length) % tabs.length;
+        go(n); tabs[n].focus();
+      });
+    });
+    // Rotation or resize: stay on the same screen.
+    window.addEventListener("resize", function () { go(current, true); }, { passive: true });
+
+    var start = load("screen", 0);
+    start = start >= 0 && start < tabs.length ? start : 0;
+    select(start);
+    light.style.setProperty("--pos", start);
+    requestAnimationFrame(function () { go(start, true); sync(); document.body.classList.add("ready"); });
   }
 
-  /* ---------- Widget: weather (Open-Meteo, free, no key) ---------- */
+  /* ---------- Online / offline ---------- */
+  function startNet() {
+    var net = $("net");
+    function update() {
+      net.textContent = navigator.onLine ? "ONLINE" : "OFFLINE";
+      net.classList.toggle("off", !navigator.onLine);
+      netListeners.forEach(function (fn) { fn(); });
+    }
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    update();
+  }
+  var netListeners = [];
+
+  /* =====================================================================
+   * Screen one: Phone Basics
+   * ===================================================================== */
+
+  /* ---------- Clock ---------- */
+  function clockCard() {
+    var c = card("clock", { title: "Clock", icon: "terminal", open: true });
+    var hm = el("span", { class: "clock-hm" }), sec = el("span", { class: "clock-s" }), ap = el("span", { class: "clock-ap" });
+    var zone = el("div", { class: "clock-zone" });
+    var utc = row("UTC", "");
+    c.body.append(el("div", { class: "clock" }, [hm, sec, ap]), zone, utc);
+    var tz = "";
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { /* old browser */ }
+    every(function (now) {
+      var h = now.getHours(), text;
+      if (C.clock24) { text = pad(h) + ":" + pad(now.getMinutes()); ap.textContent = ""; }
+      else { text = ((h % 12) || 12) + ":" + pad(now.getMinutes()); ap.textContent = h < 12 ? "AM" : "PM"; }
+      hm.textContent = text;
+      sec.textContent = ":" + pad(now.getSeconds());
+      var off = -now.getTimezoneOffset();
+      zone.textContent = (tz ? tz.replace(/_/g, " ") + " · " : "") + "UTC" + (off >= 0 ? "+" : "-") + Math.floor(Math.abs(off) / 60) + (Math.abs(off) % 60 ? ":" + pad(Math.abs(off) % 60) : "");
+      utc.lastChild.textContent = pad(now.getUTCHours()) + ":" + pad(now.getUTCMinutes());
+      c.summary(text + (ap.textContent ? " " + ap.textContent : ""));
+    });
+    return c.node;
+  }
+
+  /* ---------- Date ---------- */
+  function isoWeek(d) {
+    var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    var y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil(((t - y0) / 864e5 + 1) / 7);
+  }
+  function dateCard() {
+    var c = card("date", { title: "Date", icon: "calendar", open: true });
+    var big = el("div", { class: "date-big" }), sub = el("div", { class: "date-sub" });
+    var doy = row("Day of year", ""), wk = row("Week", ""), left = row("Days left this year", "");
+    c.body.append(big, sub, doy, wk, left);
+    var lastDay = -1;
+    every(function (now) {
+      if (now.getDate() === lastDay) return;
+      lastDay = now.getDate();
+      var y = now.getFullYear();
+      var start = new Date(y, 0, 1), next = new Date(y + 1, 0, 1);
+      var today = new Date(y, now.getMonth(), now.getDate());
+      var n = Math.round((today - start) / 864e5) + 1, total = Math.round((next - start) / 864e5);
+      big.textContent = DAYS[now.getDay()];
+      sub.textContent = MONTHS[now.getMonth()] + " " + now.getDate() + ", " + y;
+      doy.lastChild.textContent = n + " / " + total;
+      wk.lastChild.textContent = String(isoWeek(now));
+      left.lastChild.textContent = String(total - n);
+      c.summary(DAYS[now.getDay()].slice(0, 3) + " " + MONTHS[now.getMonth()].slice(0, 3) + " " + now.getDate());
+    });
+    return c.node;
+  }
+
+  /* ---------- Location + weather (Open-Meteo and BigDataCloud, free, no key) ---------- */
+  var HOME = C.weather.home;
+  var spot = load("spot", null);
+  if (!spot || typeof spot.lat !== "number" || typeof spot.lng !== "number") spot = null;
+  var wx = load("wx", null);
+  var wxListeners = [], spotListeners = [];
+  function currentSpot() { return spot || { name: HOME.name, lat: HOME.lat, lng: HOME.lng }; }
+
   var WMO = {
     0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 48: "Fog",
     51: "Drizzle", 53: "Drizzle", 55: "Drizzle", 56: "Freezing drizzle", 57: "Freezing drizzle",
@@ -373,324 +302,452 @@
     71: "Snow", 73: "Snow", 75: "Heavy snow", 77: "Snow", 80: "Showers", 81: "Showers", 82: "Heavy showers",
     85: "Snow showers", 86: "Snow showers", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm",
   };
-  function wxShort(code) {
-    if (code === 0 || code === 1) return "CLEAR";
-    if (code === 2) return "P.CLDY";
-    if (code === 3) return "CLOUDY";
-    if (code === 45 || code === 48) return "FOG";
-    if (code >= 95) return "STORM";
-    if (code >= 71 && code <= 86 && code !== 80 && code !== 81 && code !== 82) return "SNOW";
-    return "RAIN";
+  function wxIcon(code, day) {
+    if (code >= 95) return "bolt";
+    if (code <= 1) return day === 0 ? "moon" : "sun";
+    return "cloud";
   }
 
-  // The weather spot from the link (or the owner's), unless "use my location" was tapped.
-  var HOME_SPOT = CFG.w ? { name: CFG.w.n, lat: CFG.w.la, lng: CFG.w.lo } : null;
-  function loadSpot() {
-    try {
-      var s = JSON.parse(localStorage.getItem(SPOT_KEY) || "null");
-      if (s && typeof s.lat === "number" && typeof s.lng === "number" && s.name === "My location") return s;
-    } catch (e) { /* storage unavailable */ }
-    return HOME_SPOT;
-  }
-  function saveSpot(s) {
-    try { localStorage.setItem(SPOT_KEY, JSON.stringify(s)); } catch (e) { /* storage unavailable */ }
-  }
-
-  function weatherWidget() {
-    var temp = el("span", { class: "wx-temp", text: "--°" });
-    var cond = el("span", { text: "Loading weather" });
-    var extra = el("small");
-    var sun = el("small");
-    var days = el("div", { class: "wx-days" });
-    var locate = el("button", { class: "locate", type: "button", text: "⌖", "aria-label": "Use my location for weather" });
-    var spot = loadSpot();
-    var widget = panel(THEME.title("weather", spot.name), [
-      el("div", { class: "wx-now" }, [temp, el("span", { class: "wx-desc" }, [cond, extra, sun]), locate]),
-      days,
-    ], "weather");
-    var label = widget.querySelector(".label");
-    var celsius = CFG.u === "c";
-
-    function hhmm(iso) { return iso ? iso.slice(11, 16) : "--:--"; }
-    function deg(f) { return Math.round(celsius ? (f - 32) * 5 / 9 : f); }
-
-    function load() {
-      label.textContent = THEME.title("weather", spot.name);
-      if (!navigator.onLine) { cond.textContent = "Offline"; return; }
-      var url = "https://api.open-meteo.com/v1/forecast?latitude=" + spot.lat + "&longitude=" + spot.lng +
-        "&current=temperature_2m,weather_code,wind_speed_10m" +
-        "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&forecast_days=5" +
-        "&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto";
-      fetch(url).then(function (r) {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      }).then(function (d) {
-        var c = d.current || {}, dl = d.daily || {};
-        var f = c.temperature_2m;
-        temp.textContent = deg(f) + (celsius ? "°C" : "°F");
-        cond.textContent = WMO[c.weather_code] || "Weather";
-        var hi = dl.temperature_2m_max ? deg(dl.temperature_2m_max[0]) : "--";
-        var lo = dl.temperature_2m_min ? deg(dl.temperature_2m_min[0]) : "--";
-        var other = celsius ? Math.round(f) + "°F" : Math.round((f - 32) * 5 / 9) + "°C";
-        extra.textContent = other + " · H " + hi + "° L " + lo + "°";
-        sun.textContent = "↑" + hhmm(dl.sunrise && dl.sunrise[0]) + " ↓" + hhmm(dl.sunset && dl.sunset[0]);
-        days.textContent = "";
-        (dl.time || []).slice(1, 5).forEach(function (t, i) {
-          var day = new Date(t + "T12:00:00").toLocaleDateString([], { weekday: "short" }).toUpperCase();
-          days.appendChild(el("div", { class: "wx-day" }, [
-            el("b", { text: day }),
-            el("span", { text: deg(dl.temperature_2m_max[i + 1]) + "°/" + deg(dl.temperature_2m_min[i + 1]) + "°" }),
-            wxShort(dl.weather_code[i + 1]),
-          ]));
-        });
-      }).catch(function () {
-        cond.textContent = "Weather unavailable";
-      });
-    }
-
-    locate.addEventListener("click", function () {
-      if (!navigator.geolocation) return load();
-      cond.textContent = "Finding you";
-      navigator.geolocation.getCurrentPosition(function (pos) {
-        spot = { name: "My location", lat: +pos.coords.latitude.toFixed(4), lng: +pos.coords.longitude.toFixed(4) };
-        saveSpot(spot);
-        load();
-      }, function () {
-        spot = HOME_SPOT;
-        saveSpot(spot);
-        load();
-      }, { timeout: 10000, maximumAge: 600000 });
+  var wxLoading = false;
+  function fetchWeather(force) {
+    var s = currentSpot();
+    var fresh = wx && wx.lat === s.lat && wx.lng === s.lng && Date.now() - wx.at < 10 * 60 * 1000;
+    if ((fresh && !force) || wxLoading || !navigator.onLine) return;
+    wxLoading = true;
+    wxListeners.forEach(function (fn) { fn(); });
+    var f = C.weather.units === "c";
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + s.lat + "&longitude=" + s.lng +
+      "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day,precipitation" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max" +
+      "&timezone=auto&forecast_days=6" + (f ? "" : "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch");
+    fetch(url).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (data) {
+      wx = { at: Date.now(), lat: s.lat, lng: s.lng, data: data };
+      save("wx", wx);
+    }).catch(function () {
+      if (wx) wx.failed = true;
+    }).then(function () {
+      wxLoading = false;
+      wxListeners.forEach(function (fn) { fn(); });
     });
-
-    load();
-    setInterval(load, 1000 * 60 * 15);
-    window.addEventListener("online", load);
-    return widget;
   }
 
-  /* ---------- Widget: calendar (this month, today lit) ---------- */
-  function calendarWidget() {
-    var now = new Date();
-    var m = now.getMonth(), y = now.getFullYear();
-    var first = new Date(y, m, 1).getDay();
-    var count = new Date(y, m + 1, 0).getDate();
-    var head = el("tr", null, ["S", "M", "T", "W", "T", "F", "S"].map(function (d) { return el("th", { text: d }); }));
-    var rows = [], row = [];
-    for (var i = 0; i < first; i++) row.push(el("td"));
-    for (var d = 1; d <= count; d++) {
-      row.push(el("td", { class: d === now.getDate() ? "today" : null, text: String(d) }));
-      if (row.length === 7) { rows.push(el("tr", null, row)); row = []; }
+  var locating = false;
+  function locate() {
+    if (!("geolocation" in navigator)) { toast("This browser can't share location."); return; }
+    if (locating) return;
+    locating = true;
+    spotListeners.forEach(function (fn) { fn(); });
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      var lat = Math.round(pos.coords.latitude * 1e4) / 1e4, lng = Math.round(pos.coords.longitude * 1e4) / 1e4;
+      spot = { name: "My location", lat: lat, lng: lng, acc: Math.round(pos.coords.accuracy), at: Date.now() };
+      save("spot", spot);
+      locating = false;
+      spotListeners.forEach(function (fn) { fn(); });
+      fetchWeather(true);
+      fetch("https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat + "&longitude=" + lng + "&localityLanguage=en")
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          var name = d && (d.city || d.locality || d.principalSubdivision);
+          if (!name || !spot || spot.lat !== lat) return;
+          spot.name = name;
+          spot.region = [d.principalSubdivision, d.countryName].filter(Boolean).join(", ");
+          save("spot", spot);
+          spotListeners.forEach(function (fn) { fn(); });
+          wxListeners.forEach(function (fn) { fn(); });
+        }).catch(function () { /* the coordinates are enough */ });
+    }, function (err) {
+      locating = false;
+      spotListeners.forEach(function (fn) { fn(); });
+      toast(err.code === 1 ? "Location is off for this app. Allow it in Settings → Privacy → Location Services → Safari Websites." : "Couldn't get your location. Try again outside or with Wi-Fi on.");
+    }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 });
+  }
+  function useHome() {
+    spot = null;
+    save("spot", null);
+    spotListeners.forEach(function (fn) { fn(); });
+    fetchWeather(true);
+  }
+
+  function weatherCard() {
+    var c = card("weather", { title: "Weather", icon: "cloud", open: true });
+    var place = el("div", { class: "wx-place" });
+    var now = el("div", { class: "wx-now" });
+    var details = el("div", { class: "wx-grid" });
+    var days = el("ol", { class: "wx-days" });
+    var status = el("div", { class: "wx-status" });
+    var locBtn = el("button", { class: "btn", type: "button", onclick: locate }, [icon("pin"), "Use my location"]);
+    var homeBtn = el("button", { class: "btn ghost", type: "button", onclick: useHome, text: HOME.name });
+    var refresh = el("button", { class: "btn ghost", type: "button", onclick: function () { fetchWeather(true); }, text: "Refresh" });
+    c.body.append(place, now, details, days, status, el("div", { class: "btns" }, [locBtn, homeBtn, refresh]));
+
+    function deg(v) { return Math.round(v) + "°"; }
+    function render() {
+      var s = currentSpot();
+      place.textContent = s.name + (s.region ? " · " + s.region : "");
+      locBtn.lastChild.textContent = locating ? "Locating…" : spot ? "Update my location" : "Use my location";
+      homeBtn.hidden = !spot;
+      var d = wx && wx.lat === s.lat && wx.lng === s.lng ? wx.data : null;
+      if (!d || !d.current) {
+        now.textContent = ""; details.textContent = ""; days.textContent = "";
+        status.textContent = wxLoading ? "Loading weather…" : navigator.onLine ? "Weather unavailable. Tap Refresh." : "Offline. Weather shows when you're back online.";
+        c.summary(wxLoading ? "…" : "--");
+        return;
+      }
+      var cur = d.current, daily = d.daily, u = d.current_units || {};
+      now.textContent = "";
+      now.append(icon(wxIcon(cur.weather_code, cur.is_day)),
+        el("span", { class: "wx-temp", text: deg(cur.temperature_2m) }),
+        el("span", { class: "wx-cond" }, [el("b", { text: WMO[cur.weather_code] || "Weather" }),
+          el("span", { text: "H " + deg(daily.temperature_2m_max[0]) + "  L " + deg(daily.temperature_2m_min[0]) })]));
+      details.textContent = "";
+      details.append(
+        row("Feels like", deg(cur.apparent_temperature)),
+        row("Humidity", Math.round(cur.relative_humidity_2m) + "%"),
+        row("Wind", Math.round(cur.wind_speed_10m) + " " + (u.wind_speed_10m || "")),
+        row("Rain chance", (daily.precipitation_probability_max[0] == null ? "--" : daily.precipitation_probability_max[0]) + "%"),
+        row("UV index", daily.uv_index_max[0] == null ? "--" : String(Math.round(daily.uv_index_max[0]))));
+      days.textContent = "";
+      for (var i = 1; i < daily.time.length; i++) {
+        var day = new Date(daily.time[i] + "T12:00");
+        days.appendChild(el("li", null, [
+          el("span", { class: "d", text: DAYS[day.getDay()].slice(0, 3) }),
+          icon(wxIcon(daily.weather_code[i], 1)),
+          el("span", { class: "c", text: WMO[daily.weather_code[i]] || "" }),
+          el("span", { class: "p", text: daily.precipitation_probability_max[i] ? daily.precipitation_probability_max[i] + "%" : "" }),
+          el("span", { class: "t", text: deg(daily.temperature_2m_max[i]) + " / " + deg(daily.temperature_2m_min[i]) }),
+        ]));
+      }
+      var mins = Math.round((Date.now() - wx.at) / 60000);
+      status.textContent = wxLoading ? "Updating…" : (wx.failed ? "Couldn't update. " : "") + "Updated " + (mins < 1 ? "just now" : mins + " min ago") + " · Open-Meteo";
+      c.summary(deg(cur.temperature_2m) + " " + (WMO[cur.weather_code] || ""));
     }
-    if (row.length) { while (row.length < 7) row.push(el("td")); rows.push(el("tr", null, row)); }
-    var month = now.toLocaleDateString([], { month: "short" });
-    var web = /^https:/.test(CFG.k);
-    return panel(THEME.title("calendar", month), [
-      el("a", { class: "cal-link", href: CFG.k, target: web ? "_blank" : null, rel: web ? "noopener" : null, "aria-label": "Open Calendar" }, [
-        el("table", { class: "cal" }, [el("thead", null, [head]), el("tbody", null, rows)]),
-      ]),
-    ], "calendar");
+    wxListeners.push(render);
+    spotListeners.push(render);
+    netListeners.push(function () { render(); fetchWeather(); });
+    render();
+    return c.node;
   }
 
-  /* ---------- Widget: status (day/week/year progress, moon) ---------- */
+  function locationCard() {
+    var c = card("location", { title: "Location", icon: "pin" });
+    var box = el("div");
+    var btn = el("button", { class: "btn", type: "button", onclick: locate }, [icon("pin"), ""]);
+    var maps = el("a", { class: "btn ghost", target: "_blank", rel: "noopener", text: "Open in Maps" });
+    c.body.append(box, el("div", { class: "btns" }, [btn, maps]));
+    function render() {
+      box.textContent = "";
+      btn.lastChild.textContent = locating ? "Locating…" : spot ? "Update my location" : "Use my location";
+      maps.hidden = !spot;
+      if (!spot) {
+        box.append(el("p", { class: "note", text: "Weather uses " + HOME.name + " until you share your location. It stays on this phone." }));
+        c.summary(HOME.name);
+        return;
+      }
+      box.append(row("Place", spot.name));
+      if (spot.region) box.append(row("Region", spot.region));
+      box.append(row("Latitude", spot.lat.toFixed(4)), row("Longitude", spot.lng.toFixed(4)));
+      if (spot.acc) box.append(row("Accuracy", "± " + spot.acc + " m"));
+      maps.href = "https://maps.apple.com/?ll=" + spot.lat + "," + spot.lng + "&q=" + encodeURIComponent(spot.name);
+      c.summary(spot.name);
+    }
+    spotListeners.push(render);
+    render();
+    return c.node;
+  }
+
+  /* ---------- Calendar ---------- */
+  function calendarCard() {
+    var c = card("calendar", { title: "Calendar", icon: "calendar", open: true });
+    var offset = 0;
+    var title = el("b", { class: "cal-title" });
+    var todayBtn = el("button", { class: "btn ghost small", type: "button", text: "Today", onclick: function () { offset = 0; render(new Date()); } });
+    var grid = el("div", { class: "cal", role: "grid" });
+    c.body.append(
+      el("div", { class: "cal-head" }, [
+        el("button", { class: "icon-btn", type: "button", "aria-label": "Previous month", text: "‹", onclick: function () { offset--; render(new Date()); } }),
+        title,
+        el("button", { class: "icon-btn", type: "button", "aria-label": "Next month", text: "›", onclick: function () { offset++; render(new Date()); } }),
+      ]),
+      grid,
+      el("div", { class: "btns" }, [todayBtn, el("a", Object.assign({ class: "btn" }, linkAttrs(C.calendarUrl)), [icon("calendar"), "Open Calendar"])]));
+
+    var shown = "";
+    function render(now) {
+      var first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      var key = first.getFullYear() + "-" + first.getMonth() + "-" + now.getDate() + "-" + offset;
+      if (key === shown) return;
+      shown = key;
+      title.textContent = MONTHS[first.getMonth()] + " " + first.getFullYear();
+      todayBtn.hidden = offset === 0;
+      grid.textContent = "";
+      ["S", "M", "T", "W", "T", "F", "S"].forEach(function (d) { grid.appendChild(el("span", { class: "dow", text: d })); });
+      for (var i = 0; i < first.getDay(); i++) grid.appendChild(el("span"));
+      var count = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+      for (var n = 1; n <= count; n++) {
+        var today = offset === 0 && n === now.getDate();
+        grid.appendChild(el("span", { class: today ? "day today" : "day", text: String(n), "aria-current": today ? "date" : null }));
+      }
+      c.summary(MONTHS[now.getMonth()]);
+    }
+    every(render);
+    return c.node;
+  }
+
+  /* ---------- Sun & moon ---------- */
   var MOON = ["New moon", "Waxing crescent", "First quarter", "Waxing gibbous", "Full moon", "Waning gibbous", "Last quarter", "Waning crescent"];
   function moonPhase(date) {
     var synodic = 29.530588853;
     var age = ((date.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 864e5) % synodic;
     if (age < 0) age += synodic;
-    return { name: MOON[Math.floor((age / synodic) * 8 + 0.5) % 8], lit: Math.round((1 - Math.cos(2 * Math.PI * age / synodic)) / 2 * 100) };
+    return { name: MOON[Math.floor((age / synodic) * 8 + 0.5) % 8], lit: Math.round((1 - Math.cos(2 * Math.PI * age / synodic)) / 2 * 100), age: age };
   }
-
-  function systemWidget() {
-    var list = el("ul", { class: "sys" });
-    function row(key, value, pct) {
-      return el("li", null, [
-        el("div", { class: "k" }, [el("span", { text: key }), el("b", { text: value })]),
-        pct === undefined ? null : el("div", { class: "bar" }, [el("i", { style: "width:" + pct + "%" })]),
-      ]);
-    }
+  function hhmm(iso) {
+    var t = iso.split("T")[1] || "";
+    var h = +t.slice(0, 2), m = t.slice(3, 5);
+    return C.clock24 ? pad(h) + ":" + m : ((h % 12) || 12) + ":" + m + (h < 12 ? " AM" : " PM");
+  }
+  function sunCard() {
+    var c = card("sun", { title: "Sun & Moon", icon: "sun" });
+    var box = el("div");
+    c.body.append(box);
     function render() {
-      var now = new Date();
-      var midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      var dayPct = (now - midnight) / 864e5 * 100;
-      var weekPct = (((now.getDay() + 6) % 7) + dayPct / 100) / 7 * 100;
-      var yStart = new Date(now.getFullYear(), 0, 1), yEnd = new Date(now.getFullYear() + 1, 0, 1);
-      var yearPct = (now - yStart) / (yEnd - yStart) * 100;
-      var moon = moonPhase(now);
-      list.textContent = "";
-      list.appendChild(row("DAY", Math.floor(dayPct) + "%", dayPct));
-      list.appendChild(row("WEEK", Math.floor(weekPct) + "%", weekPct));
-      list.appendChild(row("YEAR", Math.floor(yearPct) + "%", yearPct));
-      list.appendChild(row("MOON", moon.lit + "%"));
-      list.appendChild(el("li", { class: "moon", text: moon.name }));
-    }
-    render();
-    setInterval(render, 60 * 1000);
-    return panel(THEME.title("status"), [list], "system");
-  }
-
-  /* ---------- App launcher ---------- */
-  function appTile(a, openFolder) {
-    var inner = [el("span", { class: "ico" }, [icon(a.i)]), el("span", { class: "lbl", text: a.l })];
-    if (a.m) {
-      return el("li", null, [el("button", { class: "app", type: "button", "aria-haspopup": "dialog", onclick: openFolder }, inner)]);
-    }
-    var web = /^https?:/.test(a.h);
-    return el("li", null, [el("a", {
-      class: "app", href: a.h,
-      target: web ? "_blank" : null, rel: web ? "noopener" : null,
-    }, inner)]);
-  }
-
-  /* ---------- Sheets (folders, settings): their own screen, a history entry ---------- */
-  var sheetCount = 0;
-  function sheet(title, items) {
-    var id = "sheet-" + (++sheetCount);
-    var back = el("button", { class: "back", type: "button", "aria-label": "Back to home", text: "←" });
-    var node = el("div", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-labelledby": id + "-title", hidden: true }, [
-      el("div", { class: "sheet-inner" }, [
-        el("div", { class: "sheet-bar" }, [back, el("h2", { id: id + "-title", text: title })]),
-        el("ul", { class: "repos" }, items.map(function (r, i) {
-          var web = /^https?:/.test(r.h);
-          return el("li", null, [el("a", { class: "repo", href: r.h, target: web && !r.same ? "_blank" : null, rel: web ? "noopener" : null }, [
-            el("span", { class: "code", text: pad(i + 1) + " //" }),
-            el("span", { class: "name", text: r.n }),
-            r.d ? el("span", { class: "desc", text: r.d }) : null,
-          ])]);
-        })),
-      ]),
-    ]);
-    var opener = null;
-
-    function show() {
-      opener = document.activeElement;
-      node.hidden = false;
-      back.focus();
-    }
-    function hide() {
-      node.hidden = true;
-      if (opener && opener.focus) opener.focus();
-    }
-    function open() {
-      if (!node.hidden) return;
-      history.pushState({ sheet: id }, "");
-      show();
-    }
-    function close() {
-      if (node.hidden) return;
-      if (history.state && history.state.sheet === id) history.back(); else hide();
-    }
-
-    back.addEventListener("click", close);
-    node.addEventListener("click", function (e) { if (e.target === node || e.target.classList.contains("sheet-inner")) close(); });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
-    window.addEventListener("popstate", function () {
-      if (history.state && history.state.sheet === id) show(); else if (!node.hidden) hide();
-    });
-
-    document.body.appendChild(node);
-    return open;
-  }
-  // Reloaded while a sheet was open: start on the home screen.
-  if (history.state && history.state.sheet) history.replaceState(null, "");
-
-  /* ---------- Accordion: everything but the clock folds; one open at a time ---------- */
-  function accordion(home, openKind) {
-    var group = el("div", { class: "acc" });
-    var panels = Array.prototype.slice.call(home.querySelectorAll(".panel:not(.clock)"));
-    panels.forEach(function (p) {
-      var bar = p.querySelector(".term-bar");
-      var body = el("div", { class: "acc-body" });
-      while (bar.nextSibling) body.appendChild(bar.nextSibling);
-      p.appendChild(body);
-      bar.setAttribute("role", "button");
-      bar.setAttribute("tabindex", "0");
-      bar.appendChild(el("span", { class: "chev", "aria-hidden": "true", text: "▾" }));
-      function toggle() {
-        var open = !p.classList.contains("open");
-        panels.forEach(function (q) {
-          q.classList.remove("open");
-          q.querySelector(".term-bar").setAttribute("aria-expanded", "false");
-        });
-        if (open) { p.classList.add("open"); bar.setAttribute("aria-expanded", "true"); }
+      var moon = moonPhase(new Date());
+      var s = currentSpot();
+      var d = wx && wx.lat === s.lat && wx.lng === s.lng ? wx.data : null;
+      box.textContent = "";
+      if (d && d.daily) {
+        var rise = d.daily.sunrise[0], set = d.daily.sunset[0];
+        var len = (new Date(set) - new Date(rise)) / 60000;
+        box.append(row("Sunrise", hhmm(rise)), row("Sunset", hhmm(set)), row("Daylight", Math.floor(len / 60) + "h " + pad(Math.round(len % 60)) + "m"));
+        c.summary("↑" + hhmm(rise).replace(/ [AP]M/, "") + " ↓" + hhmm(set).replace(/ [AP]M/, ""));
+      } else {
+        box.append(el("p", { class: "note", text: "Sunrise and sunset come with the weather." }));
+        c.summary(moon.name);
       }
-      bar.setAttribute("aria-expanded", "false");
-      bar.addEventListener("click", toggle);
-      bar.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
-      });
-      group.appendChild(p);
-      if (p.getAttribute("data-kind") === openKind) { p.classList.add("open"); bar.setAttribute("aria-expanded", "true"); }
+      box.append(row("Moon", moon.name), row("Lit", moon.lit + "%"), bar(moon.lit), row("Moon age", moon.age.toFixed(1) + " days"));
+    }
+    wxListeners.push(render);
+    spotListeners.push(render);
+    render();
+    return c.node;
+  }
+
+  /* ---------- Progress (day, week, month, year) ---------- */
+  function progressCard() {
+    var c = card("progress", { title: "Progress", icon: "bolt" });
+    var rows = {};
+    ["Day", "Week", "Month", "Year"].forEach(function (k) {
+      var r = row(k, ""), b = bar(0);
+      rows[k] = { v: r.lastChild, b: b.firstChild };
+      c.body.append(r, b);
     });
-    home.appendChild(group);
+    every(function (now) {
+      var mid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      var day = (now - mid) / 864e5;
+      var mStart = new Date(now.getFullYear(), now.getMonth(), 1), mEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      var yStart = new Date(now.getFullYear(), 0, 1), yEnd = new Date(now.getFullYear() + 1, 0, 1);
+      var p = {
+        Day: day * 100,
+        Week: (((now.getDay() + 6) % 7) + day) / 7 * 100,
+        Month: (now - mStart) / (mEnd - mStart) * 100,
+        Year: (now - yStart) / (yEnd - yStart) * 100,
+      };
+      Object.keys(p).forEach(function (k) {
+        rows[k].v.textContent = p[k].toFixed(k === "Year" ? 2 : 1) + "%";
+        rows[k].b.style.width = p[k].toFixed(2) + "%";
+      });
+      c.summary("Day " + Math.floor(p.Day) + "%");
+    });
+    return c.node;
   }
 
-  /* ---------- Lock zoom: no pinch, no double-tap zoom ---------- */
-  ["gesturestart", "gesturechange", "gestureend"].forEach(function (t) {
-    document.addEventListener(t, function (e) { e.preventDefault(); });
-  });
-  var lastTouch = 0;
-  document.addEventListener("touchend", function (e) {
-    var now = Date.now();
-    if (now - lastTouch < 350) e.preventDefault();
-    lastTouch = now;
-  }, { passive: false });
-  document.addEventListener("touchmove", function (e) {
-    if (e.touches.length > 1) e.preventDefault();
-  }, { passive: false });
-
-  /* ---------- Mount ---------- */
-  applyTheme();
-  startEffect();
-  var net = el("span", { class: "net" });
-  function setNet() {
-    net.textContent = navigator.onLine ? "Online" : "Offline";
-    net.classList.toggle("off", !navigator.onLine);
+  /* ---------- Battery (Chrome only; iOS keeps it private) ---------- */
+  function batteryCard() {
+    var c = card("battery", { title: "Battery", icon: "bolt" });
+    if (!navigator.getBattery) {
+      c.body.append(placeholder("Battery level", "iOS doesn't share the battery with web apps. It's in the status bar and Control Center; a Shortcuts automation can speak or log it."));
+      c.summary("iOS only");
+      return c.node;
+    }
+    navigator.getBattery().then(function (b) {
+      var level = row("Level", ""), state = row("State", ""), bx = bar(0);
+      c.body.append(level, bx, state);
+      function render() {
+        var pct = Math.round(b.level * 100);
+        level.lastChild.textContent = pct + "%";
+        bx.firstChild.style.width = pct + "%";
+        state.lastChild.textContent = b.charging ? "Charging" : "On battery";
+        c.summary(pct + "%" + (b.charging ? " ⚡" : ""));
+      }
+      ["levelchange", "chargingchange"].forEach(function (e) { b.addEventListener(e, render); });
+      render();
+    }).catch(function () { c.body.append(placeholder("Battery level", "Not available here.")); });
+    return c.node;
   }
-  setNet();
-  window.addEventListener("online", setNet);
-  window.addEventListener("offline", setNet);
 
-  // Tapping the name opens the builder with this screen loaded.
-  var openSettings = sheet("Customize", [
-    { n: "Edit this screen", d: "Change the theme, apps and widgets, then save it as a new link.", h: B.linkFor(CFG, "/build"), same: true },
-    { n: "Make a new one", d: "Start from any theme.", h: location.origin + "/build", same: true },
-  ]);
+  /* ---------- Network ---------- */
+  function networkCard() {
+    var c = card("network", { title: "Network", icon: "globe" });
+    var box = el("div");
+    c.body.append(box);
+    function render() {
+      var cn = navigator.connection;
+      box.textContent = "";
+      box.append(row("Status", navigator.onLine ? "Online" : "Offline"));
+      if (cn && cn.effectiveType) {
+        box.append(row("Speed class", cn.effectiveType.toUpperCase()));
+        if (cn.downlink) box.append(row("Downlink", "≈ " + cn.downlink + " Mb/s"));
+        if (cn.rtt) box.append(row("Latency", "≈ " + cn.rtt + " ms"));
+      } else {
+        box.append(placeholder("Wi-Fi / cellular", "iOS doesn't tell web apps which network you're on or how strong it is. Signal bars live in the status bar."));
+      }
+      c.summary(navigator.onLine ? "Online" : "Offline");
+    }
+    netListeners.push(render);
+    render();
+    return c.node;
+  }
 
-  var widgets = {
-    weather: function () { return CFG.w ? weatherWidget() : null; },
-    apps: function () {
-      return panel(THEME.title("apps"), [
-        el("ul", { class: "apps", "aria-label": "Shortcuts" }, CFG.a.map(function (a) {
-          return appTile(a, a.m ? sheet(a.l, a.m) : null);
-        })),
-      ], "launcher");
-    },
-    calendar: calendarWidget,
-    status: systemWidget,
-  };
+  /* ---------- Device ---------- */
+  function deviceCard() {
+    var c = card("device", { title: "Device", icon: "gear" });
+    var box = el("div");
+    c.body.append(box);
+    var ua = navigator.userAgent;
+    var ios = /iP(hone|ad|od)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var m = /OS (\d+)[_.](\d+)/.exec(ua);
+    var os = ios ? "iOS" + (m ? " " + m[1] + "." + m[2] : "") : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "macOS" : /Windows/.test(ua) ? "Windows" : "Other";
+    var standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+    function render() {
+      box.textContent = "";
+      box.append(
+        row("System", os),
+        row("Screen", screen.width + " × " + screen.height + " @" + (window.devicePixelRatio || 1) + "x"),
+        row("Viewport", window.innerWidth + " × " + window.innerHeight),
+        row("Orientation", window.innerWidth > window.innerHeight ? "Landscape" : "Portrait"),
+        row("Home Screen app", standalone ? "Yes" : "No (Safari)"),
+        row("Language", navigator.language || "--"),
+        row("Appearance", window.matchMedia("(prefers-color-scheme: dark)").matches ? "Dark" : "Light"),
+        row("Reduce Motion", REDUCE ? "On" : "Off"));
+      if (!standalone) box.append(el("p", { class: "note", text: "Tip: Share → Add to Home Screen to open Blackout full screen like an app." }));
+      c.summary(os);
+    }
+    window.addEventListener("resize", render, { passive: true });
+    render();
+    return c.node;
+  }
 
-  var boot = el("p", { class: "boot" });
-  var home = el("main", { class: "home" }, [
-    el("div", { class: "brand" }, [
-      el("button", { class: "brand-name", type: "button", "aria-label": "Customize this screen", onclick: openSettings }, [
-        el("b", { text: CFG.n }), CFG.s ? el("small", { text: CFG.s }) : null,
-      ]),
-      net,
-    ]),
-    CFG.b ? boot : null,
-    clockWidget(),
-  ]);
-  CFG.x.forEach(function (kind) {
-    var w = widgets[kind]();
-    if (w) { w.setAttribute("data-kind", kind); home.appendChild(w); }
-  });
-  document.body.appendChild(home);
-  accordion(home, CFG.o);
-  if (CFG.b) typeInto(boot, CFG.b);
+  /* ---------- Storage ---------- */
+  function storageCard() {
+    var c = card("storage", { title: "Storage", icon: "folder" });
+    if (!(navigator.storage && navigator.storage.estimate)) {
+      c.body.append(placeholder("Phone storage", "Free space on the iPhone is in Settings → General → iPhone Storage."));
+      c.summary("--");
+      return c.node;
+    }
+    function mb(b) { return b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : (b / 1e6).toFixed(1) + " MB"; }
+    navigator.storage.estimate().then(function (e) {
+      c.body.append(row("This app uses", mb(e.usage || 0)), row("Space it may use", mb(e.quota || 0)), bar(e.quota ? (e.usage || 0) / e.quota * 100 : 0),
+        el("p", { class: "note", text: "Only this app's share. Whole-phone storage is in Settings → General → iPhone Storage." }));
+      c.summary(mb(e.usage || 0));
+    }).catch(function () { c.summary("--"); });
+    return c.node;
+  }
+
+  /* ---------- iPhone-only data: clean placeholders ---------- */
+  function activityCard() {
+    var c = card("activity", { title: "Activity", icon: "heart" });
+    c.body.append(
+      el("div", { class: "rings", "aria-hidden": "true" }, [el("i"), el("i"), el("i")]),
+      placeholder("Steps, Move and Health", "Health data never reaches web apps. Placeholder until a Shortcuts automation can feed it in."));
+    c.summary("--");
+    return c.node;
+  }
+  function notifyCard() {
+    var c = card("notify", { title: "Notifications", icon: "chat" });
+    c.body.append(placeholder("Messages, missed calls, Focus", "iOS keeps these to the Lock Screen and Notification Center. Placeholder for now."));
+    c.summary("--");
+    return c.node;
+  }
+
+  /* =====================================================================
+   * Screen two: My Sites
+   * ===================================================================== */
+  function siteCards() {
+    return C.sites.map(function (g, gi) {
+      var c = card("sites." + gi + "." + g.title, { title: g.title, icon: g.icon || "globe", open: g.open });
+      var list = el("ul", { class: "sites" });
+      var set = 0;
+      g.items.forEach(function (s) {
+        var inner = [
+          el("span", { class: "tile" }, [icon(s.icon || "globe")]),
+          el("span", { class: "site-text" }, [el("b", { text: s.name }), el("small", { text: s.desc || "" })]),
+        ];
+        if (s.url) {
+          set++;
+          var host = s.url.charAt(0) === "/" ? "this site" + s.url : s.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+          inner[1].appendChild(el("i", { text: host }));
+          list.appendChild(el("li", null, [el("a", Object.assign({ class: "site" }, linkAttrs(s.url)), inner.concat(el("span", { class: "go", "aria-hidden": "true", text: "›" })))]));
+        } else {
+          inner[1].appendChild(el("i", { text: "Not set yet: add its url in config.js → sites" }));
+          list.appendChild(el("li", null, [el("button", { class: "site unset", type: "button", onclick: function () {
+            toast(s.name + " has no link yet. Add its url in config.js under sites → " + g.title + ".");
+          } }, inner.concat(el("span", { class: "tag", text: "set up" })))]));
+        }
+      });
+      c.body.append(list);
+      c.summary(set === g.items.length ? g.items.length + (g.items.length === 1 ? " site" : " sites") : set + " of " + g.items.length + " set");
+      return c.node;
+    });
+  }
+
+  /* =====================================================================
+   * Screen three: Shortcuts
+   * ===================================================================== */
+  function shortcutCards() {
+    return C.shortcuts.map(function (g, gi) {
+      var c = card("short." + gi + "." + g.title, { title: g.title, icon: g.icon || "bolt", open: g.open });
+      var grid = el("div", { class: "keys" });
+      var wired = 0;
+      g.items.forEach(function (s) {
+        var label = [el("span", { class: "key-ico" }, [icon(s.icon)]), el("span", { class: "key-label", text: s.label })];
+        if (s.url) {
+          wired++;
+          grid.appendChild(el("a", Object.assign({ class: "key" }, linkAttrs(s.url)), label));
+        } else if (s.shortcut) {
+          wired++;
+          grid.appendChild(el("a", { class: "key", href: "shortcuts://run-shortcut?name=" + encodeURIComponent(s.shortcut) },
+            label.concat(el("span", { class: "key-tag", text: "shortcut" }))));
+        } else {
+          grid.appendChild(el("button", { class: "key unset", type: "button", onclick: function () {
+            toast(s.label + " isn't wired yet. Make a shortcut in the Shortcuts app, then put its exact name in config.js → shortcuts → " + g.title + " → " + s.label + ".");
+          } }, label.concat(el("span", { class: "key-tag", text: "set up" }))));
+        }
+      });
+      c.body.append(grid);
+      c.summary(wired === g.items.length ? g.items.length + " apps" : wired + " of " + g.items.length + " wired");
+      return c.node;
+    });
+  }
+
+  /* ---------- Start ---------- */
+  $("stack-0").append(clockCard(), dateCard(), weatherCard(), calendarCard(), sunCard(), progressCard(),
+    locationCard(), batteryCard(), networkCard(), deviceCard(), storageCard(), activityCard(), notifyCard());
+  siteCards().forEach(function (n) { $("stack-1").appendChild(n); });
+  shortcutCards().forEach(function (n) { $("stack-2").appendChild(n); });
+
+  startPager();
+  startNet();
+  startRain();
+  startTicking();
+  fetchWeather();
+  setInterval(function () { if (!document.hidden) fetchWeather(); }, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) fetchWeather(); });
 
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {});
-    });
+    window.addEventListener("load", function () { navigator.serviceWorker.register("/sw.js").catch(function () {}); });
   }
 })();

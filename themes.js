@@ -1,4 +1,4 @@
-/* BLACKOUT themes — shared by the home screen (app.js) and the builder
+/* BLACKOUT themes — shared by the Studio screen (screen.js) and the builder
  * (build.js): the themes, the icon set, the app catalog, the owner's own
  * screen, and the codec that packs a whole screen into its link (#c=...).
  * Everything a link carries is untrusted, so it goes through sanitize(). */
@@ -6,9 +6,9 @@
   "use strict";
 
   /* ---------- Themes ----------
-   * css: the data-theme value (variables live in app.css).
+   * css: the data-theme value (variables live in screen.css).
    * fonts: Google Fonts css2 family query.
-   * fx: the background effect app.js draws.
+   * fx: the background effect screen.js draws.
    * title(kind, arg): each panel's title bar, in the theme's own voice. */
   function slug(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 

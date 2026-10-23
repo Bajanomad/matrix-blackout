@@ -19,51 +19,44 @@ GitHub Pages). Paths are absolute from the site root (`/app.js`, `/sw.js`).
 
 ## Screen
 
-Styled like the Matrix 411 site: green on black, terminal panels with
-`name://` title bars, VT323 / Share Tech Mono, katakana code rain behind
-everything, and a typed `> wake up, neo...` boot line.
+Green on black, VT323 / Share Tech Mono, katakana code rain behind
+everything. A top bar holds the name, an Online/Offline light and three tabs;
+a glowing light slides under the active tab and follows your finger while
+you swipe. Swipe left/right or tap a tab to move between three full screens.
+Each screen scrolls on its own, and every widget is a drop-down card: tap its
+header to fold it open or shut (the header shows a summary while shut). Which
+cards are open, and the last screen you were on, are remembered on the phone.
 
-The screen is locked to one phone screen: no scrolling, no pinch or double-tap
-zoom. The clock stays on top; weather, apps, calendar and status are folded
-bars, and tapping one opens it (the others fold shut so everything fits).
-The iPhone status bar (time, battery) is drawn by iOS and cannot be hidden
-by a web app; the page runs under it (`black-translucent`).
+1. **Basics**: Clock (seconds, time zone, UTC), Date (day of year, week),
+   Weather (Open-Meteo, free, no key; 5-day forecast, feels like, humidity,
+   wind, rain chance, UV), Calendar (month grid, flip months, Open Calendar),
+   Sun & Moon, Progress (day/week/month/year), Location (browser geolocation,
+   place name from BigDataCloud's free no-key lookup), Battery, Network,
+   Device, Storage. Weather starts at the home spot in `config.js`; "Use my
+   location" switches to the phone's position. Things iOS keeps from web apps
+   (battery level, Wi-Fi/cell, Health/steps, notifications) show a clear
+   placeholder card instead.
+2. **My Sites**: drop-downs of link cards from `sites` in `config.js`. A site
+   with an empty `url` shows as "set up" until you fill it in.
+3. **Shortcuts**: drop-downs of big buttons from `shortcuts` in `config.js`.
+   iOS app links (`tel:`, `sms:`, `maps://`, `music://`, `calshow://`...)
+   open the app. Things with no app link (camera, flashlight, alarm, timer,
+   Settings, Wi-Fi, Focus, Low Power) are placeholders: make a shortcut in the
+   Shortcuts app, then put its exact name in that button's `shortcut` field;
+   the button then opens `shortcuts://run-shortcut?name=...`.
 
-Widgets:
+The iPhone status bar (time, battery) is drawn by iOS and cannot be hidden by
+a web app; the page runs under it (`black-translucent`) and pads for the notch
+and home bar. Code rain pauses in the background and is a still frame when
+Reduce Motion is on.
 
-- **clock://local**: time with seconds, and the date, from the phone.
-- **weather://todos-santos**: current conditions, high/low, sunrise/sunset
-  and a 4-day forecast from Open-Meteo (free, no key). Defaults to Todos
-  Santos (23.4464, -110.2265, from the 411 places data). The ⌖ button
-  switches to the phone's location; the choice is remembered on that phone.
-- **cal://month**: this month with today lit; tap to open Calendar.
-- **sys://status**: progress bars for the day, week and year, and the moon
-  phase with how much of it is lit.
-- **Online/Offline** indicator next to the name.
+## Editing links and shortcuts
 
-- **apps://launch**: 10 shortcuts, each with a drawn green line icon
-  (Matrix-style, not the companies' logos):
-
-| Shortcut | Opens |
-| --- | --- |
-| Claude Code | https://claude.ai/code |
-| ChatGPT | https://chatgpt.com/ |
-| GitHub | https://github.com/ |
-| Spotify | https://open.spotify.com/ |
-| WhatsApp | `whatsapp://` (the app) |
-| Signal | `sgnl://` (the app; Signal has no web version) |
-| Gmail | https://mail.google.com/ |
-| Calendar | https://calendar.google.com/ (Google Calendar) |
-| Matrix 411 | https://411matrix.vercel.app/ |
-| Repos | the repository menu below |
-
-- **Repository menu** (its own screen; back arrow, Escape, tapping outside
-  the links, or the phone's back gesture returns home): Blackout, Matrix 411,
-  411 BCS, 411 Market, and All repositories (github.com/Bajanomad). Private
-  repositories need you signed in to GitHub.
-
-Code rain pauses when the app is in the background and is off when the phone
-has Reduce Motion turned on.
+Everything is in `config.js`: the weather home spot and units, 12/24-hour
+clock, the calendar button, `sites` and `shortcuts`. Each group there is one
+drop-down card; add items to a group or add new groups. Icons are the names in
+`ICONS` in `themes.js` (listed at the top of `config.js`). After editing, bump
+`CACHE` in `sw.js` so installed copies pick it up.
 
 ## Make your own (Blackout Studio)
 
@@ -88,30 +81,30 @@ link (`/#c=` + base64url JSON, see `themes.js`), and a draft stays on the
 device. Links are untrusted input, so `sanitize()` caps every field, keeps
 only known themes, icons and widgets, and drops `javascript:`/`data:` links.
 
-On a link, the page removes the manifest so iOS saves that exact address
+Studio screens are the one-page themed layout at `/screen` (old `/#c=`
+links are sent there). On a link, the page removes the manifest so iOS saves that exact address
 when it is added to the Home Screen, and sets the title and a home-screen
-icon drawn in the theme's colors. With no link, `/` is still the owner's
-Matrix screen (`OWNER` in `themes.js`). Tapping the name at the top of any
+icon drawn in the theme's colors. With no link, `/screen` shows the Studio's
+default Matrix screen (`OWNER` in `themes.js`). Tapping the name at the top of any
 screen opens Customize: edit this screen in the builder, or start a new one.
 
 ## Files
 
 | File | What |
 | --- | --- |
-| `index.html` | The page. |
-| `app.css` | Theme and layout (safe areas for the notch and home bar). |
-| `themes.js` | Themes, icons, the app catalog, the owner's screen (`OWNER`), and the link codec + sanitizer. |
-| `app.js` | The home screen: background effects, widgets, launcher, folders, Customize. |
+| `index.html` | The home screen: top bar, tabs and the three screens. |
+| `config.js` | **All links, sites and shortcuts**, plus weather spot and clock settings. |
+| `app.js` | Home screen logic: pager and tab light, drop-down cards, widgets, code rain. |
+| `app.css` | Home screen styles (safe areas for the notch and home bar). |
+| `themes.js` | Icon set (shared), plus the Studio's themes, app catalog, `OWNER` screen and link codec + sanitizer. |
+| `screen.html`, `screen.js`, `screen.css` | The Studio's one-page themed screen at `/screen`. |
 | `build.html`, `build.css`, `build.js` | Blackout Studio, the builder at `/build`. |
-| `vercel.json` | Clean URLs, so `/build` serves `build.html`. |
+| `vercel.json` | Clean URLs, so `/build` serves `build.html` and `/screen` serves `screen.html`. |
 | `manifest.json` | Home-screen app settings. |
-| `sw.js` | Offline cache. **Bump `CACHE` (e.g. `-v7`) whenever a file changes**, or installed copies keep the old files. |
+| `sw.js` | Offline cache. **Bump `CACHE` (e.g. `-v14`) whenever a file changes**, or installed copies keep the old files. |
 | `matrix-icon.svg` | Icon: a glowing ring with Matrix code rain falling behind an anarchy sign (animated SVG; regenerate with `python3 tools/make-icons.py`). |
 | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon-32.png`, `favicon.ico` | PNG/ICO renders of the ring icon for the manifest and older browsers. |
 | `apple-touch-icon.png` | 180×180 iPhone home-screen icon, rendered from the SVG. |
-
-To change the owner's shortcuts or repositories, edit `OWNER` in `themes.js`
-and bump the cache in `sw.js`.
 
 ## History
 
@@ -124,5 +117,7 @@ from `411matrix`.
 
 - Hosted on the Vercel project `matrix-blackout`
   (team `bajaheat24x7-8566s-projects`), connected to this repo.
-- WhatsApp and Signal open through their app links; if the app is not
-  installed, Safari shows an "address is invalid" message.
+- App links (WhatsApp, Signal, Spotify...) need the app installed; if it is
+  not, Safari shows an "address is invalid" message.
+- 411 BCS, 411 Market, the arcade and the game have empty `url`s in
+  `config.js` until their addresses are filled in.
