@@ -1,136 +1,124 @@
-/* BLACKOUT CONFIG — every link, site and shortcut on the home screen lives
- * here. Edit this file, then bump CACHE in sw.js so installed copies update.
+/* BLACKOUT CONFIG — every project, link, shortcut, contact and pinned
+ * button lives here. Edit this file only; no component needs touching.
+ * After editing, bump CACHE in sw.js so installed copies update.
  *
- * Icons: any name from ICONS in themes.js — terminal spark branch waves phone
- * shield mail calendar globe repo folder chat call camera photo map pin music
- * play cart card news book note cloud home heart star game bolt search gear
- * user car plane sun moon rocket coffee horseshoe cactus wave link. */
-window.BLACKOUT_CONFIG = {
-  /* ---------- Screen one: Phone Basics ---------- */
-  weather: {
-    // Used until "Use my location" is tapped (and if location is refused).
-    home: { name: "Todos Santos", lat: 23.4464, lng: -110.2265 },
-    units: "f", // "f" or "c"
-  },
-  clock24: false,
-  // Where the calendar card's "Open" button goes. "calshow://" opens Apple
-  // Calendar; "https://calendar.google.com/" opens Google Calendar.
-  calendarUrl: "calshow://",
+ * No secrets here: this file is public. API keys go in Vercel environment
+ * variables (see README) and are only read by the /api routes.
+ *
+ * Buttons (pinned, comms, tools) are ONE of:
+ *   { label, icon, url: "sms:" }          an iOS app link or web address
+ *   { label, icon, shortcut: "Name" }     runs your Shortcuts automation
+ *                                         named exactly "Name"
+ *   { label, icon, shortcut: "" }         placeholder: not wired yet
+ *
+ * Icons: terminal spark branch waves phone shield mail calendar globe repo
+ * folder chat call camera photo map pin music play cart card news book note
+ * cloud home heart star game bolt search gear user car plane sun moon rocket
+ * coffee horseshoe cactus wave link (drawn in themes.js). */
+(function (root) {
+  var CONFIG = {
+    name: "BLACKOUT",
+    clock24: false,
 
-  /* ---------- Screen two: My Sites ----------
-   * Each group is one drop-down card. Each site:
-   *   { name, desc, url, icon }
-   * A site with an empty url shows as "not set yet" until you fill it in. */
-  sites: [
-    {
-      title: "411",
-      icon: "globe",
-      open: true,
-      items: [
-        { name: "411 BCS", desc: "Baja California Sur directory", url: "", icon: "pin" },
-        { name: "Matrix 411", desc: "The Matrix website", url: "https://411matrix.vercel.app/", icon: "terminal" },
-        { name: "411 Market", desc: "Marketplace", url: "", icon: "cart" },
-      ],
+    weather: {
+      // Used until "Use my location" is tapped.
+      home: { name: "Todos Santos", lat: 23.4464, lng: -110.2265 },
+      units: "f", // "f" or "c"
     },
-    {
-      title: "Play",
-      icon: "game",
-      open: true,
-      items: [
-        { name: "The Arcade", desc: "My arcade", url: "", icon: "game" },
-        { name: "My Game", desc: "The video game I play", url: "", icon: "play" },
-      ],
-    },
-    {
-      title: "Code",
-      icon: "branch",
-      items: [
-        { name: "Blackout", desc: "Bajanomad/matrix-blackout", url: "https://github.com/Bajanomad/matrix-blackout", icon: "repo" },
-        { name: "Matrix 411", desc: "Bajanomad/411matrix", url: "https://github.com/Bajanomad/411matrix", icon: "repo" },
-        { name: "411 BCS", desc: "Bajanomad/411", url: "https://github.com/Bajanomad/411", icon: "repo" },
-        { name: "411 Market", desc: "Bajanomad/411-market", url: "https://github.com/Bajanomad/411-market", icon: "repo" },
-        { name: "All repositories", desc: "github.com/Bajanomad", url: "https://github.com/Bajanomad?tab=repositories", icon: "branch" },
-      ],
-    },
-    {
-      title: "Blackout",
-      icon: "spark",
-      items: [
-        { name: "Blackout Studio", desc: "Build a themed screen for anyone", url: "/build", icon: "gear" },
-        { name: "Themed screen", desc: "The one-page Studio screen", url: "/screen", icon: "star" },
-      ],
-    },
-  ],
 
-  /* ---------- Screen three: Shortcuts ----------
-   * Each group is one drop-down card of big buttons. Each button is ONE of:
-   *   { label, icon, url: "tel:" }          an iOS app link or web address
-   *   { label, icon, shortcut: "Name" }     runs your Shortcuts automation
-   *                                         named exactly "Name"
-   *   { label, icon, shortcut: "" }         placeholder: not wired yet
-   *
-   * To wire a placeholder: in the Shortcuts app make a shortcut (for example
-   * "Blackout Flashlight" with the Set Flashlight action), then type that
-   * exact name into `shortcut` below. Tapping the button opens
-   * shortcuts://run-shortcut?name=... which runs it.
-   *
-   * iOS has no web link for the camera, flashlight, alarms, Settings pages
-   * or Focus, so those start as placeholders. */
-  shortcuts: [
-    {
-      title: "Talk",
-      icon: "chat",
-      open: true,
-      items: [
-        { label: "Phone", icon: "call", url: "tel:" },
-        { label: "Messages", icon: "chat", url: "sms:" },
-        { label: "FaceTime", icon: "camera", url: "facetime:" },
-        { label: "Mail", icon: "mail", url: "message://" },
-        { label: "WhatsApp", icon: "phone", url: "whatsapp://" },
-        { label: "Signal", icon: "shield", url: "sgnl://" },
-      ],
+    // Matrix boot on the first open each day. Also switchable in Settings.
+    boot: {
+      enabled: true,
+      lines: ["Wake up, Neo...", "The Matrix has you...", "Follow the white rabbit."],
     },
-    {
-      title: "Apple apps",
-      icon: "home",
-      open: true,
-      items: [
-        { label: "Maps", icon: "map", url: "maps://" },
-        { label: "Music", icon: "music", url: "music://" },
-        { label: "Calendar", icon: "calendar", url: "calshow://" },
-        { label: "Photos", icon: "photo", url: "photos-redirect://" },
-        { label: "Notes", icon: "note", url: "mobilenotes://" },
-        { label: "Reminders", icon: "star", url: "x-apple-reminderkit://" },
-        { label: "Podcasts", icon: "play", url: "podcasts://" },
-        { label: "App Store", icon: "cart", url: "itms-apps://" },
-        { label: "Shortcuts", icon: "bolt", url: "shortcuts://" },
+
+    // Vercel team slug, for dashboard links. The API uses VERCEL_TEAM_ID.
+    vercelTeam: "bajaheat24x7-8566s-projects",
+
+    /* ---------- Projects (Projects tab, status lights, traffic) ----------
+     *   site:   live address ("/" means this Blackout site itself)
+     *   repo:   "owner/name" on GitHub
+     *   vercel: Vercel project name (or prj_ id)
+     *   traffic: count it in the 7-day traffic graph (needs Web Analytics on)
+     * Leave a field "" to hide that part. */
+    projects: [
+      { id: "411bcs", name: "411 BCS", icon: "pin", site: "", repo: "Bajanomad/411", vercel: "", traffic: true },
+      { id: "matrix", name: "Matrix 411", icon: "terminal", site: "https://411matrix.vercel.app/", repo: "Bajanomad/411matrix", vercel: "411matrix", traffic: true },
+      { id: "blackout", name: "Blackout", icon: "bolt", site: "/", repo: "Bajanomad/matrix-blackout", vercel: "matrix-blackout", traffic: false },
+      { id: "arcade", name: "The Arcade", icon: "game", site: "", repo: "", vercel: "", traffic: true },
+      { id: "book", name: "The Book", icon: "book", site: "", repo: "", vercel: "", traffic: true },
+      { id: "market", name: "411 Market", icon: "cart", site: "", repo: "Bajanomad/411-market", vercel: "", traffic: true },
+    ],
+
+    /* ---------- Data tab ----------
+     * Supabase tables to count. `created` is the timestamp column used for
+     * the 7-day sparkline ("" = total only). Signups and database size need
+     * supabase/blackout.sql run once in the SQL editor. */
+    supabase: {
+      dashboard: "https://supabase.com/dashboard/projects",
+      tables: [
+        { table: "profiles", label: "Profiles", created: "created_at" },
       ],
+      // Gauge full-scale for database size (the free plan is 500 MB).
+      dbLimitMB: 500,
     },
-    {
-      title: "Controls",
-      icon: "gear",
-      items: [
-        { label: "Camera", icon: "camera", shortcut: "" },
-        { label: "Flashlight", icon: "bolt", shortcut: "" },
-        { label: "Alarm", icon: "sun", shortcut: "" },
-        { label: "Timer", icon: "moon", shortcut: "" },
-        { label: "Settings", icon: "gear", shortcut: "" },
-        { label: "Wi-Fi", icon: "globe", shortcut: "" },
-        { label: "Focus", icon: "moon", shortcut: "" },
-        { label: "Low Power", icon: "bolt", shortcut: "" },
-      ],
+    // The Shopify card shows only when SHOPIFY_* variables are set in Vercel.
+    shopify: { admin: "https://admin.shopify.com/" },
+
+    /* ---------- Comms tab ---------- */
+    comms: [
+      { label: "Messages", icon: "chat", url: "sms:" },
+      { label: "FaceTime", icon: "camera", url: "facetime:" },
+      { label: "WhatsApp", icon: "phone", url: "whatsapp://" },
+      { label: "Mail", icon: "mail", url: "message://" },
+      { label: "Phone", icon: "call", url: "tel:" },
+      { label: "Gmail", icon: "mail", url: "googlegmail://" },
+    ],
+    // Where the Gmail unread card goes when tapped.
+    gmailUrl: "https://mail.google.com/",
+    /* Favorite people. Any of phone, whatsapp (number with country code,
+     * digits only), email. Empty name = placeholder tile. */
+    contacts: [
+      { name: "", phone: "", whatsapp: "", email: "" },
+      { name: "", phone: "", whatsapp: "", email: "" },
+      { name: "", phone: "", whatsapp: "", email: "" },
+      { name: "", phone: "", whatsapp: "", email: "" },
+    ],
+
+    /* ---------- AI & Tools tab ---------- */
+    tools: [
+      { label: "Claude", icon: "spark", url: "https://claude.ai/new" },
+      { label: "Claude Code", icon: "terminal", url: "https://claude.ai/code" },
+      { label: "ChatGPT", icon: "chat", url: "https://chatgpt.com/" },
+      { label: "Codex", icon: "branch", url: "https://chatgpt.com/codex" },
+      { label: "Spotify", icon: "waves", url: "spotify:" },
+      { label: "Shortcuts", icon: "bolt", url: "shortcuts://" },
+      { label: "Notes", icon: "note", url: "mobilenotes://" },
+    ],
+    // Placeholders to wire to Shortcuts automations later.
+    automations: [
+      { label: "Ask Claude by voice", icon: "spark", shortcut: "" },
+      { label: "Voice note", icon: "note", shortcut: "" },
+      { label: "Flashlight", icon: "bolt", shortcut: "" },
+      { label: "Focus mode", icon: "moon", shortcut: "" },
+    ],
+
+    /* ---------- Pinned bar: six buttons on every tab ---------- */
+    pinned: [
+      { label: "Claude", icon: "terminal", url: "https://claude.ai/code" },
+      { label: "GitHub", icon: "branch", url: "https://github.com/Bajanomad" },
+      { label: "Vercel", icon: "rocket", url: "https://vercel.com/bajaheat24x7-8566s-projects" },
+      { label: "Messages", icon: "chat", url: "sms:" },
+      { label: "Spotify", icon: "waves", url: "spotify:" },
+      { label: "Shortcuts", icon: "bolt", url: "shortcuts://" },
+    ],
+
+    ticker: {
+      speed: 55, // pixels per second
     },
-    {
-      title: "Web apps",
-      icon: "spark",
-      items: [
-        { label: "Claude", icon: "terminal", url: "https://claude.ai/code" },
-        { label: "ChatGPT", icon: "spark", url: "https://chatgpt.com/" },
-        { label: "GitHub", icon: "branch", url: "https://github.com/" },
-        { label: "Spotify", icon: "waves", url: "spotify:" },
-        { label: "Gmail", icon: "mail", url: "https://mail.google.com/" },
-        { label: "Search", icon: "search", url: "x-web-search://" },
-      ],
-    },
-  ],
-};
+  };
+
+  // The browser reads window.BLACKOUT_CONFIG; the /api routes require() it.
+  if (typeof module === "object" && module.exports) module.exports = CONFIG;
+  else root.BLACKOUT_CONFIG = CONFIG;
+})(this);

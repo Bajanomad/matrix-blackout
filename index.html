@@ -16,9 +16,9 @@
   <meta name="format-detection" content="telephone=no" />
   <title>MATRIX // BLACKOUT</title>
   <link rel="manifest" href="/manifest.json" />
-  <meta name="description" content="Matrix Blackout: a falling-code control screen for iPhone." />
+  <meta name="description" content="Matrix Blackout: a mission-control dashboard for iPhone." />
   <meta property="og:title" content="MATRIX // BLACKOUT" />
-  <meta property="og:description" content="Matrix Blackout: a falling-code control screen for iPhone." />
+  <meta property="og:description" content="Matrix Blackout: a mission-control dashboard for iPhone." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/icon-512.png" />
   <meta name="twitter:card" content="summary" />
@@ -39,27 +39,44 @@
     <div class="brand">
       <img src="/matrix-icon.svg" alt="" width="22" height="22" />
       <span class="brand-name">BLACKOUT</span>
-      <span class="net" id="net" aria-live="polite"></span>
+      <span class="brand-sub">MISSION CTRL</span>
+      <span class="sync" aria-hidden="true">SYNC</span>
+      <span class="net" id="net" aria-live="polite"><i></i><span></span></span>
     </div>
     <nav class="tabs" role="tablist" aria-label="Screens">
-      <button class="tab" role="tab" id="tab-0" aria-controls="screen-0" aria-selected="true">Basics</button>
-      <button class="tab" role="tab" id="tab-1" aria-controls="screen-1" aria-selected="false" tabindex="-1">My Sites</button>
-      <button class="tab" role="tab" id="tab-2" aria-controls="screen-2" aria-selected="false" tabindex="-1">Shortcuts</button>
+      <button class="tab" role="tab" id="tab-0" aria-controls="screen-0" aria-selected="true">Pulse</button>
+      <button class="tab" role="tab" id="tab-1" aria-controls="screen-1" aria-selected="false" tabindex="-1">Projects</button>
+      <button class="tab" role="tab" id="tab-2" aria-controls="screen-2" aria-selected="false" tabindex="-1">Data</button>
+      <button class="tab" role="tab" id="tab-3" aria-controls="screen-3" aria-selected="false" tabindex="-1">Comms</button>
+      <button class="tab" role="tab" id="tab-4" aria-controls="screen-4" aria-selected="false" tabindex="-1">AI·Tools</button>
       <span class="tab-light" aria-hidden="true"></span>
     </nav>
+    <div class="alerts" id="alerts" role="status" aria-live="polite"></div>
   </header>
 
   <main class="pager" id="pager">
-    <section class="screen" id="screen-0" role="tabpanel" aria-labelledby="tab-0"><div class="stack" id="stack-0"></div></section>
-    <section class="screen" id="screen-1" role="tabpanel" aria-labelledby="tab-1"><div class="stack" id="stack-1"></div></section>
-    <section class="screen" id="screen-2" role="tabpanel" aria-labelledby="tab-2"><div class="stack" id="stack-2"></div></section>
+    <section class="screen" id="screen-0" data-tab="pulse" role="tabpanel" aria-labelledby="tab-0"><div class="ptr"><span class="caret"></span><span>PULL TO SYNC</span></div><div class="stack"></div></section>
+    <section class="screen" id="screen-1" data-tab="projects" role="tabpanel" aria-labelledby="tab-1"><div class="ptr"><span class="caret"></span><span>PULL TO SYNC</span></div><div class="stack"></div></section>
+    <section class="screen" id="screen-2" data-tab="data" role="tabpanel" aria-labelledby="tab-2"><div class="ptr"><span class="caret"></span><span>PULL TO SYNC</span></div><div class="stack"></div></section>
+    <section class="screen" id="screen-3" data-tab="comms" role="tabpanel" aria-labelledby="tab-3"><div class="ptr"><span class="caret"></span><span>PULL TO SYNC</span></div><div class="stack"></div></section>
+    <section class="screen" id="screen-4" data-tab="tools" role="tabpanel" aria-labelledby="tab-4"><div class="ptr"><span class="caret"></span><span>PULL TO SYNC</span></div><div class="stack"></div></section>
   </main>
 
+  <div class="tape" id="tape" role="marquee" aria-label="Live ticker. Tap to pause."><div class="tape-track"></div><span class="tape-paused">PAUSED</span></div>
+  <nav class="dock" id="dock" aria-label="Pinned"></nav>
+
+  <div class="boot" id="boot" hidden><div class="boot-lines"></div><span class="boot-skip">tap to skip</span></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <noscript><p style="color:#35ff76;font-family:monospace;padding:16px">Blackout needs JavaScript turned on.</p></noscript>
   <script src="/themes.js"></script>
   <script src="/config.js"></script>
-  <script src="/app.js"></script>
+  <script src="/js/core.js"></script>
+  <script src="/js/pulse.js"></script>
+  <script src="/js/projects.js"></script>
+  <script src="/js/data.js"></script>
+  <script src="/js/comms.js"></script>
+  <script src="/js/tools.js"></script>
+  <script src="/js/main.js"></script>
 </body>
 </html>
