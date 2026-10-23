@@ -74,7 +74,8 @@ has Reduce Motion turned on.
 | `app.js` | Shortcuts and repository list (`APPS`, `REPOS` at the top), rain, widgets, menu. |
 | `manifest.json` | Home-screen app settings. |
 | `sw.js` | Offline cache. **Bump `CACHE` (e.g. `-v7`) whenever a file changes**, or installed copies keep the old files. |
-| `matrix-icon.svg` | Icon. |
+| `matrix-icon.svg` | Icon: a glowing ring with Matrix code rain falling inside (animated SVG; regenerate with `python3 tools/make-icons.py`). |
+| `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon-32.png`, `favicon.ico` | PNG/ICO renders of the ring icon for the manifest and older browsers. |
 | `apple-touch-icon.png` | 180×180 iPhone home-screen icon, rendered from the SVG. |
 
 To change a shortcut or add a repository, edit `APPS` or `REPOS` in `app.js`
