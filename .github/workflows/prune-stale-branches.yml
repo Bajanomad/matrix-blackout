@@ -1,0 +1,68 @@
+# Deletes every branch whose last commit is more than 24 hours old, merged or
+# not. The default branch is never touched, and neither is a branch with an
+# open pull request (its PR would close). Runs hourly; run it by hand from the
+# Actions tab, with dry_run on to only list what it would delete.
+name: Prune stale branches
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only list branches, delete nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: prune-stale-branches
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete branches older than 24 hours
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          MAX_AGE_HOURS: "24"
+        run: |
+          set -euo pipefail
+          cutoff=$(( $(date +%s) - MAX_AGE_HOURS * 3600 ))
+          open_prs=$(gh pr list -R "$REPO" --state open --limit 500 --json headRefName --jq '.[].headRefName')
+          deleted=0 kept=0 failed=0
+
+          while IFS=$'\t' read -r branch committed; do
+            [ "$branch" = "$DEFAULT_BRANCH" ] && continue
+            if grep -qxF "$branch" <<<"$open_prs"; then
+              echo "keep    $branch (open pull request)"; kept=$((kept + 1)); continue
+            fi
+            epoch=$(date -d "$committed" +%s)
+            [ "$epoch" -ge "$cutoff" ] && continue
+            age=$(( ( $(date +%s) - epoch ) / 3600 ))
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "would delete $branch (${age}h old)"
+            elif gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" --silent; then
+              echo "deleted $branch (${age}h old)"; deleted=$((deleted + 1))
+            else
+              echo "::warning::could not delete $branch"; failed=$((failed + 1))
+            fi
+          done < <(gh api graphql --paginate -F owner="${REPO%/*}" -F name="${REPO#*/}" -f query='
+                     query($owner: String!, $name: String!, $endCursor: String) {
+                       repository(owner: $owner, name: $name) {
+                         refs(refPrefix: "refs/heads/", first: 100, after: $endCursor) {
+                           pageInfo { hasNextPage endCursor }
+                           nodes { name target { ... on Commit { committedDate } } }
+                         }
+                       }
+                     }' --jq '.data.repository.refs.nodes[] | [.name, .target.committedDate] | @tsv')
+
+          echo "deleted=$deleted kept-for-open-PR=$kept failed=$failed dry_run=$DRY_RUN" | tee -a "$GITHUB_STEP_SUMMARY"
