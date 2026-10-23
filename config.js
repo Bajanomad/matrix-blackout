@@ -27,9 +27,11 @@ window.BLACKOUT_CONFIG = {
       icon: "globe",
       open: true,
       items: [
-        { name: "411 BCS", desc: "Baja California Sur directory", url: "", icon: "pin" },
+        { name: "411 BCS", desc: "Baja California Sur map & directory", url: "https://411-xi.vercel.app/", icon: "pin" },
         { name: "Matrix 411", desc: "The Matrix website", url: "https://411matrix.vercel.app/", icon: "terminal" },
-        { name: "411 Market", desc: "Marketplace", url: "", icon: "cart" },
+        { name: "411 Market", desc: "Handmade in BCS, hand-delivered", url: "https://411-market.vercel.app/", icon: "cart" },
+        { name: "411 Weather", desc: "Weather, storms, tides", url: "https://411-weather.vercel.app/", icon: "cloud" },
+        { name: "411 News", desc: "BCS headlines", url: "https://411-news.vercel.app/", icon: "news" },
       ],
     },
     {
@@ -37,8 +39,8 @@ window.BLACKOUT_CONFIG = {
       icon: "game",
       open: true,
       items: [
-        { name: "The Arcade", desc: "My arcade", url: "", icon: "game" },
-        { name: "My Game", desc: "The video game I play", url: "", icon: "play" },
+        { name: "The Arcade", desc: "Baja Arcade: eight games, offline", url: "https://411-arcade.vercel.app/", icon: "game" },
+        { name: "Everything Fades to Black", desc: "Chapter One: Outpost 2536", url: "https://everything-fades-to-black.vercel.app/", icon: "play" },
       ],
     },
     {
