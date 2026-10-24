@@ -16,7 +16,7 @@
  *   data-right    extra px from the right edge (default 0)
  *   data-hide     CSS selector; the badge hides while it matches (e.g. a game layer)
  *
- * Previews (*-david-s-projects-8e466a51.vercel.app) and localhost show the
+ * Vercel previews (*-<team>-projects[-id].vercel.app) and localhost show the
  * numbers but do not count. Add ?nocount to any URL to stop counting this
  * browser for good (?count turns it back on).
  */
@@ -59,7 +59,7 @@
   var isPreview =
     host === "localhost" ||
     /^127\.|^192\.168\.|^10\./.test(host) ||
-    /-david-s-projects-8e466a51\.vercel\.app$/.test(host);
+    /-projects(-[a-z0-9]+)?\.vercel\.app$/.test(host);
   var ua = navigator.userAgent || "";
   var isBot = navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse|preview|facebookexternalhit/i.test(ua);
   var shouldCount = !isPreview && !isBot && !store(true, OPT_OUT_KEY);
