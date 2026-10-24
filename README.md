@@ -129,3 +129,7 @@ from `411matrix`.
 - App links (WhatsApp, Signal, Spotify...) need the app installed; if it is
   not, Safari shows an "address is invalid" message.
 - Every project link in `config.js` points at its live `*.vercel.app` address.
+
+## Visit counter
+
+`visit-counter.js` shows unique visits today and all time in the bottom-right corner (tap it for more). It is a copy of the shared script; how it works, what counts and how to change it: [Bajanomad/411 docs/VISIT_COUNTER.md](https://github.com/Bajanomad/411/blob/main/docs/VISIT_COUNTER.md).
